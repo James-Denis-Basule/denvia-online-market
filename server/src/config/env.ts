@@ -1,0 +1,46 @@
+import dotenv from 'dotenv';
+import { z } from 'zod';
+
+dotenv.config();
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.coerce.number().int().positive().default(5500),
+  CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
+  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  PAYMENT_PROVIDER_MODE: z.enum(['demo', 'live']).default('demo'),
+  DELIVERY_PROVIDER_MODE: z.enum(['demo', 'live']).default('demo'),
+  STRIPE_SECRET_KEY: z.string().optional().transform((value) => value?.trim() || undefined),
+  FLUTTERWAVE_SECRET_KEY: z.string().optional().transform((value) => value?.trim() || undefined),
+  FLUTTERWAVE_ENCRYPTION_KEY: z.string().optional().transform((value) => value?.trim() || undefined),
+  COURIER_API_KEY: z.string().optional().transform((value) => value?.trim() || undefined),
+});
+
+const parsedEnv = envSchema.safeParse(process.env);
+
+if (!parsedEnv.success) {
+  const issues = parsedEnv.error.issues
+    .map((issue) => `${issue.path.join('.') || 'env'}: ${issue.message}`)
+    .join('; ');
+
+  throw new Error(`Invalid environment configuration: ${issues}`);
+}
+
+const env = {
+  nodeEnv: parsedEnv.data.NODE_ENV,
+  port: parsedEnv.data.PORT,
+  clientUrl: parsedEnv.data.CLIENT_URL,
+  mongoUri: parsedEnv.data.MONGODB_URI,
+  jwtAccessSecret: parsedEnv.data.JWT_ACCESS_SECRET,
+  jwtRefreshSecret: parsedEnv.data.JWT_REFRESH_SECRET,
+  paymentProviderMode: parsedEnv.data.PAYMENT_PROVIDER_MODE,
+  deliveryProviderMode: parsedEnv.data.DELIVERY_PROVIDER_MODE,
+  stripeSecretKey: parsedEnv.data.STRIPE_SECRET_KEY,
+  flutterwaveSecretKey: parsedEnv.data.FLUTTERWAVE_SECRET_KEY,
+  flutterwaveEncryptionKey: parsedEnv.data.FLUTTERWAVE_ENCRYPTION_KEY,
+  courierApiKey: parsedEnv.data.COURIER_API_KEY,
+};
+
+export default env;

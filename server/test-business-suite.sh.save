@@ -1,0 +1,179 @@
+#!/bin/bash
+
+BASE_URL="http://localhost:5500/api"
+
+EMAIL="domtest@example.com"
+PASSWORD="DomTest@2026"
+
+echo "=========================================="
+echo " DOM BUSINESS API TEST SUITE"
+echo "=========================================="
+
+echo
+echo "===== LOGIN ====="
+
+LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"email\": \"$EMAIL\",
+    \"password\": \"$PASSWORD\"
+  }")
+
+echo "$LOGIN_RESPONSE" | jq .
+
+ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | node -e '
+const fs = require("fs");
+
+const input = fs.readFileSync(0, "utf8").trim();
+
+if (!input) {
+  process.exit(1);
+}
+
+try {
+  const response = JSON.parse(input);
+
+  if (!response.success) {
+    process.exit(1);
+  }
+
+  const token = response.data?.accessToken;
+
+  if (!token) {
+    process.exit(1);
+  }
+
+  process.stdout.write(token);
+} catch {
+  process.exit(1);
+}
+')
+
+if [ -z "$ACCESS_TOKEN" ]; then
+  echo
+  echo "❌ LOGIN FAILED"
+  echo "The test suite cannot continue without an access token."
+  exit 1
+fi
+
+echo "✅ LOGIN PASSED"
+
+AUTH_HEADER="Authorization: Bearer $ACCESS_TOKEN"
+
+echo
+echo "===== TEST 1: PUBLIC BUSINESS LIST ====="
+
+curl -s "$BASE_URL/businesses" | jq .
+
+echo
+echo "===== TEST 2: PUBLIC BUSINESS SEARCH ====="
+
+curl -s "$BASE_URL/businesses?search=DOM" | jq .
+
+echo
+echo "===== TEST 3: PUBLIC BUSINESS PAGINATION ====="
+
+curl -s "$BASE_URL/businesses?page=1&limit=10" | jq .
+
+echo
+echo "===== TEST 4: PUBLIC BUSINESS SORT ====="
+
+curl -s "$BASE_URL/businesses?sort=name_asc" | jq .
+
+echo
+echo "===== TEST 5: PUBLIC BUSINESS DETAILS ====="
+
+BUSINESS_ID=$(curl -s "$BASE_URL/businesses" | node -e '
+const fs = require("fs");
+
+try {
+  const response = JSON.parse(fs.readFileSync(0, "utf8"));
+  const id = response.data?.businesses?.[0]?._id;
+
+  if (id) {
+    process.stdout.write(id);
+  }
+} catch {}
+')
+
+if [ -z "$BUSINESS_ID" ]; then
+  echo "❌ Could not find a business ID."
+else
+  curl -s "$BASE_URL/businesses/$BUSINESS_ID" | jq .
+fi
+
+echo
+echo "===== TEST 6: MY BUSINESSES ====="
+
+curl -s "$BASE_URL/businesses/my-businesses" \
+  -H "$AUTH_HEADER" | jq .
+
+echo
+echo "===== TEST 7: MY BUSINESS DETAILS ====="
+
+if [ -n "$BUSINESS_ID" ]; then
+  curl -s "$BASE_URL/businesses/my/$BUSINESS_ID" \
+    -H "$AUTH_HEADER" | jq .
+fi
+
+echo
+echo "===== TEST 8: PUBLIC BUSINESS PRODUCTS ====="
+
+if [ -n "$BUSINESS_ID" ]; then
+  curl -s "$BASE_URL/businesses/$BUSINESS_ID/products" | jq .
+fi
+
+echo
+echo "===== TEST 9: PUBLIC BUSINESS SERVICES ====="
+
+if [ -n "$BUSINESS_ID" ]; then
+  curl -s "$BASE_URL/businesses/$BUSINESS_ID/services" | jq .
+fi
+
+echo
+echo "===== TEST 10: WHATSAPP LINK ====="
+
+if [ -n "$BUSINESS_ID" ]; then
+  curl -s "$BASE_URL/businesses/$BUSINESS_ID/whatsapp" | jq .
+fi
+
+echo
+echo "===== TEST 11: WHATSAPP LINK WITH MESSAGE ====="
+
+if [ -n "$BUSINESS_ID" ]; then
+  curl -s --get "$BASE_URL/businesses/$BUSINESS_ID/whatsapp" \
+    --data-urlencode "message=Hello, I am interested in your products" | jq .
+fi
+
+echo
+echo "===== TEST 12: UNAUTHORIZED MY BUSINESSES ====="
+
+curl -s "$BASE_URL/businesses/my-businesses" | jq .
+
+echo
+echo "===== TEST 13: INVALID BUSINESS ID ====="
+
+curl -s "$BASE_URL/businesses/invalid-id" | jq .
+
+echo
+echo "===== TEST 14: NON-EXISTENT BUSINESS ====="
+
+curl -s "$BASE_URL/businesses/000000000000000000000000" | jq .
+
+echo
+echo "===== TEST 15: INVALID PUBLIC QUERY ====="
+
+curl -s "$BASE_URL/businesses?page=invalid" | jq .
+
+echo
+echo "=========================================="
+echo " TEST SUITE COMPLETE"
+echo "=========================================="
+
+
+
+
+
+
+
+

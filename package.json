@@ -1,0 +1,28 @@
+{
+  "name": "denvia-online-market",
+  "version": "1.0.0",
+  "description": "Denvia Online Market full-stack project",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "lint": "npm --prefix client run lint",
+    "test": "npm --prefix server run test",
+    "start": "npm --prefix server run start"
+  },
+  "keywords": [
+    "marketplace",
+    "react",
+    "express",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
