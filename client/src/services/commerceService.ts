@@ -130,7 +130,11 @@ export async function addToCart(item: CartItem) {
   try {
     const response = await api.post(
       '/marketplace/cart/items',
-      item,
+      {
+        productId: item.productId,
+        businessId: item.businessId,
+        quantity: item.quantity,
+      },
       {
         headers: { Authorization: `Bearer ${token}` },
       },
@@ -181,7 +185,14 @@ export async function createOrder(payload: {
   }
 
   try {
-    const response = await api.post('/marketplace/orders', payload, {
+    const response = await api.post('/marketplace/orders', {
+      ...payload,
+      items: payload.items.map((item) => ({
+        productId: item.productId,
+        businessId: item.businessId,
+        quantity: item.quantity,
+      })),
+    }, {
       headers: { Authorization: `Bearer ${token}` },
     });
 

@@ -6,11 +6,23 @@ import {
   getServiceController,
   updateServiceController,
   deleteServiceController,
+  getPublicServicesController,
 } from "../controllers/serviceController.js";
 
 import { authenticate } from "../middleware/authMiddleware.js";
 
 const router = Router();
+
+/**
+ * Public services belonging to a business
+ *
+ * Example:
+ * GET /api/services/public/business/:businessId
+ */
+router.get(
+  "/public/business/:businessId",
+  getPublicServicesController,
+);
 
 /**
  * Get services belonging to the authenticated user's business

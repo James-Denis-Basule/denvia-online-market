@@ -7,7 +7,10 @@ import type {
   UpdateCategoryInput,
 } from "../types/category.js";
 
-async function verifyBusinessOwnership(businessId: string, ownerId: string) {
+async function verifyBusinessOwnership(
+  businessId: string,
+  ownerId: string,
+) {
   const business = await Business.findOne({
     _id: businessId,
     ownerId,
@@ -27,7 +30,10 @@ export async function createCategory(
   ownerId: string,
   input: CreateCategoryInput,
 ) {
-  await verifyBusinessOwnership(input.businessId, ownerId);
+  await verifyBusinessOwnership(
+    input.businessId,
+    ownerId,
+  );
 
   const slug = generateSlug(input.name);
 
@@ -54,8 +60,14 @@ export async function createCategory(
   return category;
 }
 
-export async function getMyCategories(ownerId: string, businessId: string) {
-  await verifyBusinessOwnership(businessId, ownerId);
+export async function getMyCategories(
+  ownerId: string,
+  businessId: string,
+) {
+  await verifyBusinessOwnership(
+    businessId,
+    ownerId,
+  );
 
   return Category.find({
     businessId,
@@ -64,14 +76,25 @@ export async function getMyCategories(ownerId: string, businessId: string) {
   });
 }
 
-export async function getCategoryById(ownerId: string, categoryId: string) {
-  const category = await Category.findById(categoryId);
+export async function getCategoryById(
+  ownerId: string,
+  categoryId: string,
+) {
+  const category = await Category.findById(
+    categoryId,
+  );
 
   if (!category) {
-    throw new AppError("Category not found", 404);
+    throw new AppError(
+      "Category not found",
+      404,
+    );
   }
 
-  await verifyBusinessOwnership(category.businessId.toString(), ownerId);
+  await verifyBusinessOwnership(
+    category.businessId.toString(),
+    ownerId,
+  );
 
   return category;
 }
@@ -81,24 +104,38 @@ export async function updateCategory(
   categoryId: string,
   input: UpdateCategoryInput,
 ) {
-  const category = await Category.findById(categoryId);
+  const category = await Category.findById(
+    categoryId,
+  );
 
   if (!category) {
-    throw new AppError("Category not found", 404);
+    throw new AppError(
+      "Category not found",
+      404,
+    );
   }
 
-  await verifyBusinessOwnership(category.businessId.toString(), ownerId);
+  await verifyBusinessOwnership(
+    category.businessId.toString(),
+    ownerId,
+  );
 
-  if (input.name && input.name !== category.name) {
-    const newSlug = generateSlug(input.name);
+  if (
+    input.name &&
+    input.name !== category.name
+  ) {
+    const newSlug = generateSlug(
+      input.name,
+    );
 
-    const existingCategory = await Category.findOne({
-      businessId: category.businessId,
-      slug: newSlug,
-      _id: {
-        $ne: categoryId,
-      },
-    });
+    const existingCategory =
+      await Category.findOne({
+        businessId: category.businessId,
+        slug: newSlug,
+        _id: {
+          $ne: categoryId,
+        },
+      });
 
     if (existingCategory) {
       throw new AppError(
@@ -112,11 +149,13 @@ export async function updateCategory(
   }
 
   if (input.description !== undefined) {
-    category.description = input.description;
+    category.description =
+      input.description;
   }
 
   if (input.isActive !== undefined) {
-    category.isActive = input.isActive;
+    category.isActive =
+      input.isActive;
   }
 
   await category.save();
@@ -124,21 +163,36 @@ export async function updateCategory(
   return category;
 }
 
-export async function deleteCategory(ownerId: string, categoryId: string) {
-  const category = await Category.findById(categoryId);
+export async function deleteCategory(
+  ownerId: string,
+  categoryId: string,
+) {
+  const category = await Category.findById(
+    categoryId,
+  );
 
   if (!category) {
-    throw new AppError("Category not found", 404);
+    throw new AppError(
+      "Category not found",
+      404,
+    );
   }
 
-  await verifyBusinessOwnership(category.businessId.toString(), ownerId);
+  await verifyBusinessOwnership(
+    category.businessId.toString(),
+    ownerId,
+  );
 
-  await Category.findByIdAndDelete(categoryId);
+  await Category.findByIdAndDelete(
+    categoryId,
+  );
 
   return true;
 }
 
-export async function getPublicCategories(businessId?: string) {
+export async function getPublicCategories(
+  businessId?: string,
+) {
   const filter: Record<string, unknown> = {
     isActive: true,
   };
@@ -152,14 +206,19 @@ export async function getPublicCategories(businessId?: string) {
   });
 }
 
-export async function getPublicCategoryById(categoryId: string) {
+export async function getPublicCategoryById(
+  categoryId: string,
+) {
   const category = await Category.findOne({
     _id: categoryId,
     isActive: true,
   });
 
   if (!category) {
-    throw new AppError("Category not found", 404);
+    throw new AppError(
+      "Category not found",
+      404,
+    );
   }
 
   return category;

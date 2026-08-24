@@ -6,12 +6,13 @@ import {
   createOrderForUser,
   getCart,
   getCheckoutQuote,
-  getOrderByIdForUser,
+  getOrderForCustomerOrAuthorizedSeller,
   getOrdersForUser,
   getSellerDashboardSummary,
   getSellerOrdersForBusinessIds,
   updateOrderStatus,
   assignDeliveryToOrder,
+  requireAuthorizedSellerForOrder,
 } from "../services/commerceService.js";
 import { getDeliveryForOrder, updateDeliveryStatusForOrder } from "../services/deliveryService.js";
 
@@ -57,24 +58,20 @@ export async function addToCartController(
       return;
     }
 
-    const { productId, businessId, name, price, quantity = 1, currency = "UGX", image } = req.body ?? {};
+    const { productId, businessId, quantity } = req.body ?? {};
 
-    if (!productId || !businessId || !name || typeof price !== "number") {
+    if (typeof productId !== "string" || !productId) {
       res.status(400).json({
         success: false,
-        message: "productId, businessId, name, and price are required",
+        message: "productId is required",
       });
       return;
     }
 
     const cart = await addToCart(req.user.userId, {
       productId,
-      businessId,
-      name,
-      price,
+      businessId: typeof businessId === "string" ? businessId : undefined,
       quantity,
-      currency,
-      image,
     });
 
     const totals = calculateCartTotals(
@@ -160,7 +157,7 @@ export async function getCheckoutQuoteController(
     }
 
     const { items, paymentMethod, shippingMethod, deliveryAddress } = req.body ?? {};
-    const quote = getCheckoutQuote(items ?? [], paymentMethod, shippingMethod, deliveryAddress);
+    const quote = await getCheckoutQuote(items ?? [], paymentMethod, shippingMethod, deliveryAddress);
 
     res.status(200).json({
       success: true,
@@ -188,7 +185,7 @@ export async function getSellerOrdersController(
         ? req.query.businessIds.split(",").filter((value) => value.trim().length > 0)
         : [];
 
-    const orders = await getSellerOrdersForBusinessIds(rawBusinessIds);
+    const orders = await getSellerOrdersForBusinessIds(req.user, rawBusinessIds);
 
     res.status(200).json({
       success: true,
@@ -216,7 +213,7 @@ export async function getSellerDashboardSummaryController(
         ? req.query.businessIds.split(",").filter((value) => value.trim().length > 0)
         : [];
 
-    const summary = await getSellerDashboardSummary(req.user.userId, rawBusinessIds);
+    const summary = await getSellerDashboardSummary(req.user, rawBusinessIds);
 
     res.status(200).json({
       success: true,
@@ -239,7 +236,7 @@ export async function getOrderByIdController(
     }
 
     const orderId = Array.isArray(req.params.orderId) ? req.params.orderId[0] : req.params.orderId;
-    const order = await getOrderByIdForUser(req.user.userId, orderId);
+    const order = await getOrderForCustomerOrAuthorizedSeller(req.user, orderId);
 
     res.status(200).json({
       success: true,
@@ -269,6 +266,7 @@ export async function updateOrderStatusController(
       return;
     }
 
+    await requireAuthorizedSellerForOrder(req.user, orderId);
     const order = await updateOrderStatus(orderId, status as Parameters<typeof updateOrderStatus>[1]);
 
     res.status(200).json({
@@ -296,6 +294,7 @@ export async function assignDeliveryController(
     const courier = typeof req.body?.courier === 'string' ? req.body.courier : undefined;
     const trackingCode = typeof req.body?.trackingCode === 'string' ? req.body.trackingCode : undefined;
 
+    await requireAuthorizedSellerForOrder(req.user, orderId);
     const delivery = await assignDeliveryToOrder(orderId, courier, trackingCode);
 
     res.status(200).json({
@@ -320,6 +319,7 @@ export async function getDeliveryForOrderController(
     }
 
     const orderId = Array.isArray(req.params.orderId) ? req.params.orderId[0] : req.params.orderId;
+    await getOrderForCustomerOrAuthorizedSeller(req.user, orderId);
     const delivery = await getDeliveryForOrder(orderId);
 
     res.status(200).json({ success: true, data: delivery });
@@ -349,6 +349,7 @@ export async function updateDeliveryStatusController(
       return;
     }
 
+    await requireAuthorizedSellerForOrder(req.user, orderId);
     const delivery = await updateDeliveryStatusForOrder(orderId, status as Parameters<typeof updateDeliveryStatusForOrder>[1], {
       courier,
       trackingCode,

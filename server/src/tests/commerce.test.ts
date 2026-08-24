@@ -2,12 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildOrderFromCart,
   buildSellerDashboardSummary,
   calculateCartTotals,
   calculateCheckoutTotals,
-  getCheckoutQuote,
-  normalizeCartItem,
   updateOrderStatus,
   validateOrderStatusTransition,
 } from '../services/commerceService.js';
@@ -35,76 +32,12 @@ test('cart totals sum item quantities and prices', () => {
   assert.equal(totals.itemCount, 5);
 });
 
-test('order creation from cart keeps pending status and totals', () => {
-  const order = buildOrderFromCart([
-    {
-      productId: '67d8d1f5d39b5b8f5f41de7b',
-      businessId: '67d8d1f5d39b5b8f5f41de7c',
-      name: 'Laptop',
-      price: 200000,
-      quantity: 1,
-      currency: 'UGX',
-    },
-  ]);
-
-  assert.equal(order.status, 'pending');
-  assert.equal(order.total, 205000);
-  assert.equal(order.items.length, 1);
-});
-
 test('checkout totals include delivery and payment fees', () => {
   const totals = calculateCheckoutTotals(200000, 'express', 'card');
 
   assert.equal(totals.deliveryFee, 15000);
   assert.equal(totals.paymentFee, 1200);
   assert.equal(totals.total, 216200);
-});
-
-test('normalize cart item validates ids and quantity', () => {
-  assert.throws(
-    () =>
-      normalizeCartItem({
-        productId: 'bad-id',
-        businessId: '67d8d1f5d39b5b8f5f41de7c',
-        name: 'Laptop',
-        price: 200000,
-        quantity: 2,
-      }),
-    /Valid productId and businessId are required/,
-  );
-
-  const item = normalizeCartItem({
-    productId: '67d8d1f5d39b5b8f5f41de7b',
-    businessId: '67d8d1f5d39b5b8f5f41de7c',
-    name: '  Laptop  ',
-    price: 200000,
-    quantity: 2,
-  });
-
-  assert.equal(item.name, 'Laptop');
-  assert.equal(item.quantity, 2);
-  assert.equal(item.currency, 'UGX');
-});
-
-test('delivery orders reject missing address', () => {
-  assert.throws(
-    () =>
-      buildOrderFromCart(
-        [
-          {
-            productId: '67d8d1f5d39b5b8f5f41de7b',
-            businessId: '67d8d1f5d39b5b8f5f41de7c',
-            name: 'Laptop',
-            price: 200000,
-            quantity: 1,
-          },
-        ],
-        'cash_on_delivery',
-        'delivery',
-        '',
-      ),
-    /Delivery address is required for delivery orders/,
-  );
 });
 
 test('unsupported payment and shipping methods are rejected', () => {
@@ -127,28 +60,6 @@ test('order status transitions follow the defined lifecycle', () => {
   );
 
   assert.equal(validateOrderStatusTransition('packed', 'shipped'), true);
-});
-
-test('checkout quote includes provider metadata for checkout decisions', () => {
-  const quote = getCheckoutQuote(
-    [
-      {
-        productId: '67d8d1f5d39b5b8f5f41de7b',
-        businessId: '67d8d1f5d39b5b8f5f41de7c',
-        name: 'Laptop',
-        price: 200000,
-        quantity: 1,
-      },
-    ],
-    'mobile_money',
-    'express',
-    'Kampala, Uganda',
-  );
-
-  assert.equal(quote.deliveryFee, 15000);
-  assert.equal(quote.paymentFee, 500);
-  assert.equal(quote.providerSummary.shippingProvider, 'Express delivery');
-  assert.equal(quote.providerSummary.paymentProvider, 'Mobile money');
 });
 
 test('payment intents create a valid provider-backed payment reference', () => {

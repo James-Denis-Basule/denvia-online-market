@@ -1,14 +1,24 @@
 import mongoose from "mongoose";
 import Business from "../models/Business.js";
 import Cart from "../models/Cart.js";
-import Order, { type OrderStatus, type PaymentStatus } from "../models/Order.js";
+import Order, { type OrderStatus } from "../models/Order.js";
 import Payment from "../models/Payment.js";
 import Delivery from "../models/Delivery.js";
+import Product from "../models/Product.js";
 import { PAYMENT_PROVIDERS, createPaymentIntent, validatePaymentStatus } from "./paymentService.js";
 import { calculateDeliveryFee, createTrackingCode, normalizeDeliveryMethod } from "./deliveryService.js";
 import { buildDeliveryProviderRequest, buildPaymentProviderRequest } from "./providerAdapterService.js";
 import { AppError } from "../utils/AppError.js";
 import { notifyOrderStatusChange } from "./notificationService.js";
+
+export interface CommerceActor {
+  userId: string;
+  role: string;
+}
+
+type OrderAuthorizationTarget = {
+  items?: Array<{ businessId: unknown }>;
+};
 
 export const SUPPORTED_SHIPPING_METHODS = {
   standard: { label: "Standard delivery", fee: 5000 },
@@ -27,40 +37,107 @@ export const SUPPORTED_PAYMENT_PROVIDER_LOGOS = PAYMENT_PROVIDERS;
 
 export interface CartItemInput {
   productId: string;
+  businessId?: string;
+  quantity?: unknown;
+}
+
+type AuthoritativeCartItem = {
+  productId: string;
   businessId: string;
   name: string;
   price: number;
-  currency?: string;
+  currency: string;
   image?: string;
-  quantity?: number;
+  quantity: number;
+};
+
+function normalizeRequestedQuantity(quantity: unknown) {
+  const value = quantity === undefined ? 1 : quantity;
+
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
+    throw new AppError("Quantity must be a positive whole number", 400);
+  }
+
+  return value;
 }
 
-export function normalizeCartItem(item: CartItemInput) {
-  if (!item.productId || !item.businessId || !item.name) {
-    throw new AppError("productId, businessId, and name are required", 400);
+async function resolveAuthoritativeCartItems(items: CartItemInput[]) {
+  if (!items.length) {
+    throw new AppError("Cart is empty", 400);
   }
 
-  if (!mongoose.isValidObjectId(item.productId) || !mongoose.isValidObjectId(item.businessId)) {
-    throw new AppError("Valid productId and businessId are required", 400);
+  const requestedItems = new Map<string, { quantity: number; businessId?: string }>();
+
+  for (const item of items) {
+    if (!item || typeof item.productId !== "string" || !mongoose.isValidObjectId(item.productId)) {
+      throw new AppError("Valid productId is required", 400);
+    }
+
+    if (item.businessId !== undefined && (!item.businessId || !mongoose.isValidObjectId(item.businessId))) {
+      throw new AppError("Valid businessId is required", 400);
+    }
+
+    const quantity = normalizeRequestedQuantity(item.quantity);
+    const existing = requestedItems.get(item.productId);
+
+    if (existing?.businessId && item.businessId && existing.businessId !== item.businessId) {
+      throw new AppError("A product cannot be requested for multiple businesses", 400);
+    }
+
+    requestedItems.set(item.productId, {
+      quantity: (existing?.quantity ?? 0) + quantity,
+      businessId: existing?.businessId ?? item.businessId,
+    });
   }
 
-  const numericPrice = Number(item.price);
+  const resolvedItems: AuthoritativeCartItem[] = [];
+  let orderCurrency: string | undefined;
 
-  if (!Number.isFinite(numericPrice) || numericPrice < 0) {
-    throw new AppError("Price must be a valid non-negative number", 400);
+  for (const [productId, requested] of requestedItems) {
+    const product = await Product.findById(productId).lean();
+    if (!product) {
+      throw new AppError("Product not found", 404);
+    }
+
+    const businessId = String(product.businessId);
+    if (requested.businessId && requested.businessId !== businessId) {
+      throw new AppError("Product does not belong to the requested business", 400);
+    }
+
+    const business = await Business.findOne({ _id: product.businessId, status: "active" })
+      .select("_id")
+      .lean();
+    if (!business) {
+      throw new AppError("Business is not available for purchases", 409);
+    }
+
+    if (product.status !== "active" || !product.isVisible) {
+      throw new AppError("Product is not available for purchase", 409);
+    }
+
+    if (product.stockQuantity < requested.quantity) {
+      throw new AppError("Requested quantity exceeds available inventory", 409);
+    }
+
+    const currency = product.currency.toUpperCase();
+    if (orderCurrency && orderCurrency !== currency) {
+      throw new AppError("All order items must use the same currency", 400);
+    }
+    orderCurrency = currency;
+
+    const primaryMedia = product.media.find((media) => media.isPrimary) ?? product.media[0];
+    resolvedItems.push({
+      productId: String(product._id),
+      businessId,
+      name: product.name,
+      price: product.price,
+      currency,
+      image: primaryMedia?.url,
+      quantity: requested.quantity,
+    });
   }
 
-  const quantity = Math.max(1, Number(item.quantity ?? 1));
-
-  return {
-    productId: item.productId,
-    businessId: item.businessId,
-    name: item.name.trim(),
-    price: numericPrice,
-    currency: (item.currency ?? "UGX").toUpperCase(),
-    image: item.image?.trim() || undefined,
-    quantity,
-  };
+  return resolvedItems;
 }
 
 export async function getCart(userId: string) {
@@ -81,31 +158,35 @@ export async function getCart(userId: string) {
 }
 
 export async function addToCart(userId: string, itemInput: CartItemInput) {
-  const normalizedItem = normalizeCartItem(itemInput);
-
   const cart = await Cart.findOne({ userId });
+  const existingItem = cart?.items.find(
+    (item) => String(item.productId) === itemInput.productId,
+  );
+  const requestedQuantity = normalizeRequestedQuantity(itemInput.quantity);
+  const [authoritativeItem] = await resolveAuthoritativeCartItems([{
+    productId: itemInput.productId,
+    businessId: itemInput.businessId,
+    quantity: requestedQuantity + (existingItem?.quantity ?? 0),
+  }]);
 
   if (!cart) {
     const createdCart = await Cart.create({
       userId,
-      items: [normalizedItem],
+      items: [authoritativeItem],
     });
 
     return createdCart.toObject();
   }
 
-  const existingItem = cart.items.find(
-    (item) => String(item.productId) === String(normalizedItem.productId),
-  );
-
   if (existingItem) {
-    existingItem.quantity += normalizedItem.quantity;
-    existingItem.price = normalizedItem.price;
-    existingItem.name = normalizedItem.name;
-    existingItem.currency = normalizedItem.currency;
-    existingItem.image = normalizedItem.image;
+    existingItem.quantity = authoritativeItem.quantity;
+    existingItem.price = authoritativeItem.price;
+    existingItem.name = authoritativeItem.name;
+    existingItem.businessId = new mongoose.Types.ObjectId(authoritativeItem.businessId);
+    existingItem.currency = authoritativeItem.currency;
+    existingItem.image = authoritativeItem.image;
   } else {
-    cart.items.push(normalizedItem as never);
+    cart.items.push(authoritativeItem as never);
   }
 
   await cart.save();
@@ -160,13 +241,14 @@ export function calculateCheckoutTotals(subtotal: number, shippingMethod?: strin
   };
 }
 
-export function getCheckoutQuote(
+export async function getCheckoutQuote(
   items: CartItemInput[],
   paymentMethod?: string,
   shippingMethod?: string,
   deliveryAddress?: string,
 ) {
-  const orderData = buildOrderFromCart(items, paymentMethod, shippingMethod, deliveryAddress);
+  const authoritativeItems = await resolveAuthoritativeCartItems(items);
+  const orderData = buildOrderFromAuthoritativeItems(authoritativeItems, paymentMethod, shippingMethod, deliveryAddress);
 
   return {
     ...orderData,
@@ -177,8 +259,8 @@ export function getCheckoutQuote(
   };
 }
 
-export function buildOrderFromCart(
-  items: CartItemInput[],
+function buildOrderFromAuthoritativeItems(
+  items: AuthoritativeCartItem[],
   paymentMethod?: string,
   shippingMethod?: string,
   deliveryAddress?: string,
@@ -187,15 +269,8 @@ export function buildOrderFromCart(
     throw new AppError("Cart is empty", 400);
   }
 
-  const normalizedItems = items.map((item) => ({
-    ...item,
-    currency: item.currency ?? "UGX",
-    quantity: Math.max(1, Number(item.quantity ?? 1)),
-    price: Number(item.price) || 0,
-  }));
-
   const totals = calculateCartTotals(
-    normalizedItems.map((item) => ({
+    items.map((item) => ({
       price: item.price,
       quantity: item.quantity,
     })),
@@ -219,12 +294,12 @@ export function buildOrderFromCart(
   }
 
   return {
-    items: normalizedItems,
+    items,
     subtotal: checkoutTotals.subtotal,
     deliveryFee: checkoutTotals.deliveryFee,
     paymentFee: checkoutTotals.paymentFee,
     total: checkoutTotals.total,
-    currency: normalizedItems[0]?.currency ?? "UGX",
+    currency: items[0]?.currency ?? "UGX",
     paymentMethod: normalizedPayment,
     shippingMethod: normalizedShipping,
     deliveryAddress: deliveryAddress?.trim() || undefined,
@@ -295,6 +370,93 @@ export async function getOrderByIdForUser(userId: string, orderId: string) {
 
   if (!order) {
     throw new AppError("Order not found", 404);
+  }
+
+  return order;
+}
+
+function requireSellerRole(actor: CommerceActor) {
+  if (actor.role !== "business_owner") {
+    throw new AppError("Business owner access required", 403);
+  }
+}
+
+async function getOwnedBusinessIds(
+  actor: CommerceActor,
+  requestedBusinessIds: string[] = [],
+) {
+  requireSellerRole(actor);
+
+  const requestedIds = requestedBusinessIds
+    .map((businessId) => businessId.trim())
+    .filter(Boolean);
+
+  if (requestedIds.some((businessId) => !mongoose.isValidObjectId(businessId))) {
+    throw new AppError("Valid businessId is required", 400);
+  }
+
+  const ownedBusinesses = await Business.find({ ownerId: actor.userId })
+    .select("_id")
+    .lean();
+  const ownedIds = ownedBusinesses.map((business) => String(business._id));
+
+  if (requestedIds.length > 0) {
+    const ownedIdSet = new Set(ownedIds);
+    if (requestedIds.some((businessId) => !ownedIdSet.has(businessId))) {
+      throw new AppError("You are not authorized to operate one or more businesses", 403);
+    }
+
+    return requestedIds;
+  }
+
+  return ownedIds;
+}
+
+export async function getOrderForCustomerOrAuthorizedSeller(
+  actor: CommerceActor,
+  orderId: string,
+) {
+  if (!mongoose.isValidObjectId(orderId)) {
+    throw new AppError("Valid orderId is required", 400);
+  }
+
+  const order = await Order.findById(orderId).lean();
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  if (String(order.userId) === actor.userId) {
+    return order;
+  }
+
+  await requireAuthorizedSellerForOrder(actor, orderId, order);
+  return order;
+}
+
+export async function requireAuthorizedSellerForOrder(
+  actor: CommerceActor,
+  orderId: string,
+  knownOrder?: OrderAuthorizationTarget | null,
+) {
+  requireSellerRole(actor);
+
+  if (!mongoose.isValidObjectId(orderId)) {
+    throw new AppError("Valid orderId is required", 400);
+  }
+
+  const order = knownOrder ?? await Order.findById(orderId).lean();
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  const businessIds = (order.items ?? []).map((item: { businessId: unknown }) => String(item.businessId));
+  if (!businessIds.length) {
+    throw new AppError("Order has no business items", 400);
+  }
+
+  const authorizedBusinessIds = await getOwnedBusinessIds(actor, businessIds);
+  if (authorizedBusinessIds.length !== businessIds.length) {
+    throw new AppError("You are not authorized to operate this order", 403);
   }
 
   return order;
@@ -403,15 +565,8 @@ export function buildSellerDashboardSummary(
   };
 }
 
-export async function getSellerDashboardSummary(userId: string, businessIds?: string[]) {
-  const explicitBusinessIds = (businessIds ?? [])
-    .map((businessId) => businessId.trim())
-    .filter(Boolean)
-    .filter((businessId) => mongoose.isValidObjectId(businessId));
-
-  const ownerBusinessIds = explicitBusinessIds.length > 0
-    ? explicitBusinessIds
-    : (await Business.find({ ownerId: userId }).select("_id").lean()).map((business) => String(business._id));
+export async function getSellerDashboardSummary(actor: CommerceActor, businessIds?: string[]) {
+  const ownerBusinessIds = await getOwnedBusinessIds(actor, businessIds);
 
   if (!ownerBusinessIds.length) {
     return buildSellerDashboardSummary([]);
@@ -422,7 +577,10 @@ export async function getSellerDashboardSummary(userId: string, businessIds?: st
     .map((businessId) => new mongoose.Types.ObjectId(businessId));
 
   const orders = await Order.find({
-    items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } },
+    $and: [
+      { items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } } },
+      { items: { $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } } } },
+    ],
   })
     .sort({ createdAt: -1 })
     .limit(25)
@@ -438,11 +596,9 @@ export async function assignDeliveryToOrder(orderId: string, courier?: string, t
   return deliveryAssign(orderId, courier, trackingCode);
 }
 
-export async function getSellerOrdersForBusinessIds(businessIds: string[]) {
-  const normalizedBusinessIds = businessIds
-    .map((businessId) => businessId.trim())
-    .filter(Boolean)
-    .filter((businessId) => mongoose.isValidObjectId(businessId))
+export async function getSellerOrdersForBusinessIds(actor: CommerceActor, businessIds?: string[]) {
+  const ownedBusinessIds = await getOwnedBusinessIds(actor, businessIds);
+  const normalizedBusinessIds = ownedBusinessIds
     .map((businessId) => new mongoose.Types.ObjectId(businessId));
 
   if (!normalizedBusinessIds.length) {
@@ -450,7 +606,10 @@ export async function getSellerOrdersForBusinessIds(businessIds: string[]) {
   }
 
   const orders = await Order.find({
-    items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } },
+    $and: [
+      { items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } } },
+      { items: { $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } } } },
+    ],
   })
     .sort({ createdAt: -1 })
     .lean();
@@ -468,7 +627,12 @@ export async function createOrderForUser(
   },
 ) {
   const cart = await Cart.findOne({ userId }).lean();
-  const sourceItems = payload?.items?.length ? payload.items : cart?.items ?? [];
+  const sourceItems: CartItemInput[] = payload?.items?.length
+    ? payload.items
+    : (cart?.items ?? []).map((item) => ({
+      productId: String(item.productId),
+      quantity: item.quantity,
+    }));
 
   if (!sourceItems.length) {
     throw new AppError("Cart is empty", 400);
@@ -477,20 +641,36 @@ export async function createOrderForUser(
   const normalizedPaymentMethod = normalizePaymentMethod(payload?.paymentMethod);
   const paymentStatus = validatePaymentStatus("pending");
 
-  const orderData = buildOrderFromCart(
-    sourceItems.map((item) => ({
-      productId: String(item.productId),
-      businessId: String(item.businessId),
-      name: item.name,
-      price: Number(item.price),
-      quantity: Number(item.quantity ?? 1),
-      currency: item.currency,
-      image: item.image,
-    })),
+  const authoritativeItems = await resolveAuthoritativeCartItems(sourceItems);
+  const orderData = buildOrderFromAuthoritativeItems(
+    authoritativeItems,
     payload?.paymentMethod,
     payload?.shippingMethod,
     payload?.deliveryAddress,
   );
+
+  const reservedItems: AuthoritativeCartItem[] = [];
+
+  try {
+    for (const item of authoritativeItems) {
+      const product = await Product.findOneAndUpdate(
+        {
+          _id: item.productId,
+          businessId: item.businessId,
+          status: "active",
+          isVisible: true,
+          stockQuantity: { $gte: item.quantity },
+        },
+        { $inc: { stockQuantity: -item.quantity } },
+        { returnDocument: "after" },
+      ).lean();
+
+      if (!product) {
+        throw new AppError("Requested quantity exceeds available inventory", 409);
+      }
+
+      reservedItems.push(item);
+    }
 
   const createdOrder = await Order.create({
     userId,
@@ -586,4 +766,13 @@ export async function createOrderForUser(
     deliveryGateway: deliveryRequest.gateway,
     paymentIntent,
   };
+  } catch (error) {
+    await Promise.all(
+      reservedItems.map((item) => Product.updateOne(
+        { _id: item.productId },
+        { $inc: { stockQuantity: item.quantity } },
+      )),
+    );
+    throw error;
+  }
 }

@@ -140,6 +140,18 @@ export async function refreshAccessToken(
     const result =
       await refreshUserAccessToken(refreshToken);
 
+    res.cookie(
+      authConfig.refreshCookieName,
+      result.refreshToken,
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/api/auth",
+      },
+    );
+
     res.status(200).json({
       success: true,
       data: {

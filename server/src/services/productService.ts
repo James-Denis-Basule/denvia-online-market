@@ -1,19 +1,15 @@
 import cloudinary from "../config/cloudinary.js";
-
-import Product from "../models/Product.js";
+import Product, { type IProduct } from "../models/Product.js";
 import Business from "../models/Business.js";
 import Category from "../models/Category.js";
-
 import { AppError } from "../utils/AppError.js";
 import { getPagination } from "../utils/pagination.js";
 import { generateSlug } from "../utils/slug.js";
-
 import type {
   CreateProductInput,
   PublicProductQueryInput,
   UpdateProductInput,
 } from "../types/product.js";
-
 import { Types } from "mongoose";
 
 function normalizeProductMedia(
@@ -28,10 +24,34 @@ function normalizeProductMedia(
   return media.map((image, index) => ({
     ...image,
     isPrimary: primaryIndex === -1 ? index === 0 : index === primaryIndex,
+    sortOrder: index,
   }));
 }
 
+function normalizeProductStatus(
+  stockQuantity: number,
+  requestedStatus: IProduct["status"],
+) {
+  if (stockQuantity === 0) {
+    return "out_of_stock" as const;
+  }
+
+  if (requestedStatus === "out_of_stock") {
+    return "active" as const;
+  }
+
+  return requestedStatus;
+}
+
+function validateObjectId(value: string, fieldName: string) {
+  if (!Types.ObjectId.isValid(value)) {
+    throw new AppError(`Invalid ${fieldName}`, 400);
+  }
+}
+
 async function verifyBusinessOwnership(businessId: string, ownerId: string) {
+  validateObjectId(businessId, "business ID");
+
   const business = await Business.findOne({
     _id: businessId,
     ownerId,
@@ -48,6 +68,9 @@ async function verifyBusinessOwnership(businessId: string, ownerId: string) {
 }
 
 async function verifyCategoryOwnership(categoryId: string, businessId: string) {
+  validateObjectId(categoryId, "category ID");
+  validateObjectId(businessId, "business ID");
+
   const category = await Category.findOne({
     _id: categoryId,
     businessId,
@@ -62,6 +85,25 @@ async function verifyCategoryOwnership(categoryId: string, businessId: string) {
   }
 
   return category;
+}
+
+async function deleteProductMediaFromCloudinary(media: IProduct["media"]) {
+  for (const item of media) {
+    if (!item.publicId) {
+      continue;
+    }
+
+    try {
+      await cloudinary.uploader.destroy(item.publicId, {
+        resource_type: "image",
+      });
+    } catch (error) {
+      console.error(
+        `Failed to delete Cloudinary asset ${item.publicId}:`,
+        error,
+      );
+    }
+  }
 }
 
 export async function createProduct(
@@ -111,6 +153,8 @@ export async function createProduct(
     await verifyCategoryOwnership(input.categoryId, input.businessId);
   }
 
+  const status = normalizeProductStatus(input.stockQuantity, input.status);
+
   const product = await Product.create({
     businessId: input.businessId,
     name: input.name,
@@ -122,7 +166,7 @@ export async function createProduct(
     sku: input.sku,
     stockQuantity: input.stockQuantity,
     categoryId: input.categoryId,
-    status: input.stockQuantity === 0 ? "out_of_stock" : input.status,
+    status,
     isVisible: input.isVisible,
     media,
   });
@@ -161,20 +205,30 @@ export async function getPublicProducts(query: PublicProductQueryInput) {
   }
 
   if (categoryId) {
-    if (!Types.ObjectId.isValid(categoryId)) {
-      throw new AppError("Invalid category ID", 400);
-    }
+    validateObjectId(categoryId, "category ID");
 
     filter.categoryId = new Types.ObjectId(categoryId);
   }
 
   const sortMap = {
-    newest: { createdAt: -1 },
-    oldest: { createdAt: 1 },
-    price_asc: { price: 1 },
-    price_desc: { price: -1 },
-    name_asc: { name: 1 },
-    name_desc: { name: -1 },
+    newest: {
+      createdAt: -1,
+    },
+    oldest: {
+      createdAt: 1,
+    },
+    price_asc: {
+      price: 1,
+    },
+    price_desc: {
+      price: -1,
+    },
+    name_asc: {
+      name: 1,
+    },
+    name_desc: {
+      name: -1,
+    },
   } as const;
 
   const { page: safePage, limit: safeLimit, skip } = getPagination(page, limit);
@@ -188,6 +242,7 @@ export async function getPublicProducts(query: PublicProductQueryInput) {
         path: "categoryId",
         select: "name slug description",
       }),
+
     Product.countDocuments(filter),
   ]);
 
@@ -207,6 +262,8 @@ export async function getPublicProducts(query: PublicProductQueryInput) {
 }
 
 export async function getProductById(ownerId: string, productId: string) {
+  validateObjectId(productId, "product ID");
+
   const product = await Product.findById(productId);
 
   if (!product) {
@@ -223,6 +280,8 @@ export async function updateProduct(
   productId: string,
   input: UpdateProductInput,
 ) {
+  validateObjectId(productId, "product ID");
+
   const product = await Product.findById(productId);
 
   if (!product) {
@@ -320,9 +379,10 @@ export async function updateProduct(
     );
   }
 
-  if (product.stockQuantity === 0 && product.status === "active") {
-    product.status = "out_of_stock";
-  }
+  product.status = normalizeProductStatus(
+    product.stockQuantity,
+    product.status,
+  );
 
   await product.save();
 
@@ -340,6 +400,8 @@ export async function addProductMedia(
     sortOrder?: number;
   },
 ) {
+  validateObjectId(productId, "product ID");
+
   const product = await Product.findById(productId);
 
   if (!product) {
@@ -352,7 +414,10 @@ export async function addProductMedia(
     throw new AppError("A product can have a maximum of 10 images", 400);
   }
 
-  if (mediaInput.isPrimary) {
+  const shouldBePrimary =
+    product.media.length === 0 || mediaInput.isPrimary === true;
+
+  if (shouldBePrimary) {
     product.media.forEach((media) => {
       media.isPrimary = false;
     });
@@ -362,8 +427,8 @@ export async function addProductMedia(
     url: mediaInput.url,
     publicId: mediaInput.publicId,
     alt: mediaInput.alt,
-    isPrimary: mediaInput.isPrimary ?? product.media.length === 0,
-    sortOrder: mediaInput.sortOrder ?? product.media.length,
+    isPrimary: shouldBePrimary,
+    sortOrder: product.media.length,
   });
 
   await product.save();
@@ -376,6 +441,10 @@ export async function setPrimaryProductMedia(
   productId: string,
   mediaId: string,
 ) {
+  validateObjectId(productId, "product ID");
+
+  validateObjectId(mediaId, "media ID");
+
   const product = await Product.findById(productId);
 
   if (!product) {
@@ -406,6 +475,10 @@ export async function deleteProductMedia(
   productId: string,
   mediaId: string,
 ) {
+  validateObjectId(productId, "product ID");
+
+  validateObjectId(mediaId, "media ID");
+
   const product = await Product.findById(productId);
 
   if (!product) {
@@ -425,15 +498,24 @@ export async function deleteProductMedia(
   const media = product.media[mediaIndex];
 
   const wasPrimary = media.isPrimary;
+
   const publicId = media.publicId;
 
   if (publicId) {
-    await cloudinary.uploader.destroy(publicId, {
-      resource_type: "image",
-    });
+    try {
+      await cloudinary.uploader.destroy(publicId, {
+        resource_type: "image",
+      });
+    } catch (error) {
+      console.error(`Failed to delete Cloudinary asset ${publicId}:`, error);
+    }
   }
 
   product.media.splice(mediaIndex, 1);
+
+  product.media.forEach((item, index) => {
+    item.sortOrder = index;
+  });
 
   if (wasPrimary && product.media.length > 0) {
     product.media.forEach((item) => {
@@ -453,6 +535,8 @@ export async function reorderProductMedia(
   productId: string,
   mediaIds: string[],
 ) {
+  validateObjectId(productId, "product ID");
+
   const product = await Product.findById(productId);
 
   if (!product) {
@@ -509,6 +593,8 @@ export async function reorderProductMedia(
 }
 
 export async function deleteProduct(ownerId: string, productId: string) {
+  validateObjectId(productId, "product ID");
+
   const product = await Product.findById(productId);
 
   if (!product) {
@@ -517,15 +603,15 @@ export async function deleteProduct(ownerId: string, productId: string) {
 
   await verifyBusinessOwnership(product.businessId.toString(), ownerId);
 
+  await deleteProductMediaFromCloudinary(product.media);
+
   await Product.findByIdAndDelete(productId);
 
   return true;
 }
 
 export async function getPublicProductById(productId: string) {
-  if (!Types.ObjectId.isValid(productId)) {
-    throw new AppError("Invalid product ID", 400);
-  }
+  validateObjectId(productId, "product ID");
 
   const product = await Product.findOne({
     _id: productId,

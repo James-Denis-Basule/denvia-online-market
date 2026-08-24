@@ -20,17 +20,10 @@ const router = Router();
 router.get("/", getPublicCategoriesController);
 
 /**
- * Public category details
- */
-router.get("/:id", getPublicCategoryController);
-
-/**
- * Create category
- */
-router.post("/", authenticate, createCategoryController);
-
-/**
  * Get all categories belonging to a business
+ *
+ * This must come before /:id so "business" is not
+ * interpreted as a category ID.
  */
 router.get(
   "/business/:businessId",
@@ -45,6 +38,20 @@ router.get(
   "/manage/:id",
   authenticate,
   getCategoryController,
+);
+
+/**
+ * Public category details
+ */
+router.get("/:id", getPublicCategoryController);
+
+/**
+ * Create category
+ */
+router.post(
+  "/",
+  authenticate,
+  createCategoryController,
 );
 
 /**

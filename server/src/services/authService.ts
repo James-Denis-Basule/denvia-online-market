@@ -1,11 +1,15 @@
 import User from '../models/User.js';
+
 import { hashPassword, comparePassword } from '../utils/password.js';
+
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
 } from '../utils/jwt.js';
+
 import { AppError } from '../utils/AppError.js';
+
 import type { RegisterInput } from '../types/auth.js';
 
 export async function registerUser(input: RegisterInput) {
@@ -151,8 +155,23 @@ export async function refreshUserAccessToken(
     role: user.role,
   });
 
+  /*
+   * Rotate the refresh token after every successful refresh.
+   *
+   * The previous refresh token becomes invalid immediately
+   * because only the newly generated token is stored.
+   */
+  const newRefreshToken = generateRefreshToken(
+    user._id.toString(),
+  );
+
+  user.refreshToken = newRefreshToken;
+
+  await user.save();
+
   return {
     accessToken,
+    refreshToken: newRefreshToken,
   };
 }
 
