@@ -129,6 +129,10 @@ export function updateDeliveryStatus(
   currentStatus: DeliveryStatus,
   nextStatus: DeliveryStatus,
 ) {
+  if (currentStatus === nextStatus) {
+    return currentStatus;
+  }
+
   if (
     !isDeliveryTransitionAllowed(
       currentStatus,

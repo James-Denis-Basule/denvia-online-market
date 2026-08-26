@@ -659,3 +659,336 @@ test(
     }
   },
 );
+test(
+  "late payment paid webhook does not regress a confirmed order",
+  async () => {
+    const mongo = await MongoMemoryReplSet.create({
+      replSet: {
+        count: 1,
+      },
+    });
+    await mongoose.connect(mongo.getUri());
+    const server = app.listen(0);
+
+    try {
+      const { order } = await createPaymentFixture();
+
+      order.status = "confirmed";
+      await order.save();
+
+      const payloadObject = {
+        orderId: String(order._id),
+        status: "paid",
+        provider: "mobile_money",
+        reference: "provider-ref-late-confirmed",
+        providerEventId: "event-late-confirmed-001",
+      };
+
+      const payload = JSON.stringify(payloadObject);
+      const signature = signPayload(payload);
+
+      const address = server.address();
+      const port =
+        typeof address === "object" && address
+          ? address.port
+          : 0;
+
+      const response = await fetch(
+        `http://127.0.0.1:${port}/api/webhooks/payment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-signature": signature,
+          },
+          body: payload,
+        },
+      );
+
+      assert.equal(response.status, 200);
+
+      const updatedOrder = await Order.findById(
+        order._id,
+      ).lean();
+
+      assert.equal(updatedOrder?.paymentStatus, "paid");
+      assert.equal(updatedOrder?.status, "confirmed");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) =>
+          error ? reject(error) : resolve(),
+        );
+      });
+
+      await mongoose.disconnect();
+      await mongo.stop();
+    }
+  },
+);
+
+test(
+  "late payment paid webhook does not regress a shipped order",
+  async () => {
+    const mongo = await MongoMemoryReplSet.create({
+      replSet: {
+        count: 1,
+      },
+    });
+    await mongoose.connect(mongo.getUri());
+    const server = app.listen(0);
+
+    try {
+      const { order } = await createPaymentFixture();
+
+      order.status = "shipped";
+      await order.save();
+
+      const payloadObject = {
+        orderId: String(order._id),
+        status: "paid",
+        provider: "mobile_money",
+        reference: "provider-ref-late-shipped",
+        providerEventId: "event-late-shipped-001",
+      };
+
+      const payload = JSON.stringify(payloadObject);
+      const signature = signPayload(payload);
+
+      const address = server.address();
+      const port =
+        typeof address === "object" && address
+          ? address.port
+          : 0;
+
+      const response = await fetch(
+        `http://127.0.0.1:${port}/api/webhooks/payment`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-signature": signature,
+          },
+          body: payload,
+        },
+      );
+
+      assert.equal(response.status, 200);
+
+      const updatedOrder = await Order.findById(
+        order._id,
+      ).lean();
+
+      assert.equal(updatedOrder?.paymentStatus, "paid");
+      assert.equal(updatedOrder?.status, "shipped");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) =>
+          error ? reject(error) : resolve(),
+        );
+      });
+
+      await mongoose.disconnect();
+      await mongo.stop();
+    }
+  },
+);
+
+test(
+  "late delivery in_transit webhook does not regress a completed order",
+  async () => {
+    const mongo = await MongoMemoryReplSet.create({
+      replSet: {
+        count: 1,
+      },
+    });
+    await mongoose.connect(mongo.getUri());
+    const server = app.listen(0);
+
+    try {
+      const { order, delivery } =
+        await createDeliveryFixture();
+
+      order.status = "completed";
+      await order.save();
+
+      delivery.status = "in_transit";
+      delivery.events = [
+        {
+          status: "assigned",
+          courier: "courier",
+          trackingCode: "DEL-WEBHOOK-001",
+          createdAt: new Date(),
+        },
+        {
+          status: "in_transit",
+          courier: "courier",
+          trackingCode: "DEL-WEBHOOK-001",
+          createdAt: new Date(),
+        },
+      ];
+      await delivery.save();
+
+      const payloadObject = {
+        orderId: String(order._id),
+        status: "in_transit",
+        courier: "courier",
+        trackingCode: "DEL-WEBHOOK-001",
+        provider: "courier",
+        providerEventId: "delivery-event-late-completed-001",
+      };
+
+      const payload = JSON.stringify(payloadObject);
+      const signature = signPayload(
+        payload,
+        DELIVERY_WEBHOOK_SECRET,
+      );
+
+      const address = server.address();
+      const port =
+        typeof address === "object" && address
+          ? address.port
+          : 0;
+
+      const response = await fetch(
+        `http://127.0.0.1:${port}/api/webhooks/delivery`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-signature": signature,
+          },
+          body: payload,
+        },
+      );
+
+      assert.equal(response.status, 200);
+
+      const updatedOrder = await Order.findById(
+        order._id,
+      ).lean();
+
+      assert.equal(updatedOrder?.status, "completed");
+
+      const updatedDelivery =
+        await Delivery.findById(delivery._id).lean();
+
+      assert.equal(
+        updatedDelivery?.status,
+        "in_transit",
+      );
+      assert.equal(
+        updatedDelivery?.providerEventId,
+        "delivery-event-late-completed-001",
+      );
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) =>
+          error ? reject(error) : resolve(),
+        );
+      });
+
+      await mongoose.disconnect();
+      await mongo.stop();
+    }
+  },
+);
+
+test(
+  "out-of-order delivery assigned webhook is rejected after in_transit",
+  async () => {
+    const mongo = await MongoMemoryReplSet.create({
+      replSet: {
+        count: 1,
+      },
+    });
+    await mongoose.connect(mongo.getUri());
+    const server = app.listen(0);
+
+    try {
+      const { order, delivery } =
+        await createDeliveryFixture();
+
+      delivery.status = "in_transit";
+      delivery.events = [
+        {
+          status: "assigned",
+          courier: "courier",
+          trackingCode: "DEL-WEBHOOK-001",
+          createdAt: new Date(),
+        },
+        {
+          status: "in_transit",
+          courier: "courier",
+          trackingCode: "DEL-WEBHOOK-001",
+          createdAt: new Date(),
+        },
+      ];
+      await delivery.save();
+
+      order.status = "shipped";
+      await order.save();
+
+      const payloadObject = {
+        orderId: String(order._id),
+        status: "assigned",
+        courier: "courier",
+        trackingCode: "DEL-WEBHOOK-001",
+        provider: "courier",
+        providerEventId: "delivery-event-out-of-order-001",
+      };
+
+      const payload = JSON.stringify(payloadObject);
+      const signature = signPayload(
+        payload,
+        DELIVERY_WEBHOOK_SECRET,
+      );
+
+      const address = server.address();
+      const port =
+        typeof address === "object" && address
+          ? address.port
+          : 0;
+
+      const response = await fetch(
+        `http://127.0.0.1:${port}/api/webhooks/delivery`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-signature": signature,
+          },
+          body: payload,
+        },
+      );
+
+      assert.equal(response.status, 400);
+
+      const unchangedDelivery =
+        await Delivery.findById(delivery._id).lean();
+
+      assert.equal(
+        unchangedDelivery?.status,
+        "in_transit",
+      );
+      assert.equal(
+        unchangedDelivery?.providerEventId,
+        undefined,
+      );
+
+      const unchangedOrder = await Order.findById(
+        order._id,
+      ).lean();
+
+      assert.equal(unchangedOrder?.status, "shipped");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) =>
+          error ? reject(error) : resolve(),
+        );
+      });
+
+      await mongoose.disconnect();
+      await mongo.stop();
+    }
+  },
+);
