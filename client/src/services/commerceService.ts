@@ -104,10 +104,7 @@ export async function getCart() {
   }
 
   try {
-    const response = await api.get('/marketplace/cart', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    const response = await api.get('/marketplace/cart');
     return response.data.data;
   } catch {
     return demoCart;
@@ -124,21 +121,16 @@ export async function addToCart(item: CartItem) {
       total: demoCart.items.reduce((sum, current) => sum + current.price * current.quantity, 0),
       itemCount: demoCart.items.reduce((sum, current) => sum + current.quantity, 0),
     };
+
     return { item, totals: demoCart.totals };
   }
 
   try {
-    const response = await api.post(
-      '/marketplace/cart/items',
-      {
-        productId: item.productId,
-        businessId: item.businessId,
-        quantity: item.quantity,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
+    const response = await api.post('/marketplace/cart/items', {
+      productId: item.productId,
+      businessId: item.businessId,
+      quantity: item.quantity,
+    });
 
     return response.data.data;
   } catch {
@@ -148,6 +140,7 @@ export async function addToCart(item: CartItem) {
       total: demoCart.items.reduce((sum, current) => sum + current.price * current.quantity, 0),
       itemCount: demoCart.items.reduce((sum, current) => sum + current.quantity, 0),
     };
+
     return { item, totals: demoCart.totals };
   }
 }
@@ -181,6 +174,7 @@ export async function createOrder(payload: {
     demoOrders.unshift(order);
     demoCart.items = [];
     demoCart.totals = { subtotal: 0, total: 0, itemCount: 0 };
+
     return order;
   }
 
@@ -192,8 +186,6 @@ export async function createOrder(payload: {
         businessId: item.businessId,
         quantity: item.quantity,
       })),
-    }, {
-      headers: { Authorization: `Bearer ${token}` },
     });
 
     return response.data.data;
@@ -216,6 +208,7 @@ export async function createOrder(payload: {
     };
 
     demoOrders.unshift(order);
+
     return order;
   }
 }
@@ -228,10 +221,7 @@ export async function getOrders() {
   }
 
   try {
-    const response = await api.get('/marketplace/orders', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    const response = await api.get('/marketplace/orders');
     return response.data.data;
   } catch {
     return demoOrders;
@@ -246,10 +236,7 @@ export async function getOrder(orderId: string) {
   }
 
   try {
-    const response = await api.get(`/marketplace/orders/${orderId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    const response = await api.get(`/marketplace/orders/${orderId}`);
     return response.data.data;
   } catch {
     return demoOrders.find((order) => order._id === orderId) ?? null;
@@ -261,8 +248,11 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus) {
 
   if (!token) {
     const order = demoOrders.find((item) => item._id === orderId);
+
     if (!order) return null;
+
     order.status = status;
+
     return order;
   }
 
@@ -270,16 +260,16 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus) {
     const response = await api.patch(
       `/marketplace/orders/${orderId}/status`,
       { status },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
     );
 
     return response.data.data;
   } catch {
     const order = demoOrders.find((item) => item._id === orderId);
+
     if (!order) return null;
+
     order.status = status;
+
     return order;
   }
 }
