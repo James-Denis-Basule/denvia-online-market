@@ -8,7 +8,10 @@ import env from "./config/env.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import systemRoutes from "./routes/systemRoutes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
-import { createRateLimiter, requestLogger } from "./middleware/securityMiddleware.js";
+import {
+  createRateLimiter,
+  requestLogger,
+} from "./middleware/securityMiddleware.js";
 import businessRoutes from "./routes/businessRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
@@ -23,11 +26,14 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
-import { paymentWebhookController, deliveryWebhookController } from "./controllers/webhookController.js";
+import {
+  paymentWebhookController,
+  deliveryWebhookController,
+} from "./controllers/webhookController.js";
 
 const app = express();
 
-app.disable('x-powered-by');
+app.disable("x-powered-by");
 app.use(helmet());
 
 app.use(
@@ -37,7 +43,15 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  express.json({
+    limit: "10mb",
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody =
+        Buffer.from(buf);
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(requestLogger);
 

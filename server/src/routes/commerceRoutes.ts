@@ -12,6 +12,7 @@ import {
   assignDeliveryController,
   getDeliveryForOrderController,
   updateDeliveryStatusController,
+  cancelOrderController
 } from "../controllers/commerceController.js";
 import { authenticate } from "../middleware/authMiddleware.js";
 
@@ -25,6 +26,7 @@ router.get("/orders/seller", authenticate, getSellerOrdersController);
 router.get("/orders/seller/summary", authenticate, getSellerDashboardSummaryController);
 router.get("/orders/:orderId", authenticate, getOrderByIdController);
 router.post("/orders", authenticate, createOrderController);
+router.post("/orders/:orderId/cancel", authenticate, cancelOrderController);
 router.patch("/orders/:orderId/status", authenticate, updateOrderStatusController);
 router.post("/orders/:orderId/assign-delivery", authenticate, assignDeliveryController);
 router.get("/orders/:orderId/delivery", authenticate, getDeliveryForOrderController);

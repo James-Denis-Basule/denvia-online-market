@@ -1,7 +1,19 @@
 import type { Request, Response, NextFunction } from "express";
-import { updatePaymentStatusForOrder, validatePaymentStatus } from "../services/paymentService.js";
-import { updateDeliveryStatusForOrder, normalizeDeliveryStatus } from "../services/deliveryService.js";
-import { buildWebhookResponse, verifyWebhookSignature } from "../services/webhookService.js";
+
+import {
+  updatePaymentStatusForOrder,
+  validatePaymentStatus,
+} from "../services/paymentService.js";
+
+import {
+  updateDeliveryStatusForOrder,
+  normalizeDeliveryStatus,
+} from "../services/deliveryService.js";
+
+import {
+  buildWebhookResponse,
+  verifyWebhookSignature,
+} from "../services/webhookService.js";
 
 export async function paymentWebhookController(
   req: Request,
@@ -11,14 +23,32 @@ export async function paymentWebhookController(
   try {
     const payload = JSON.stringify(req.body ?? {});
     const signature = req.headers["x-signature"] as string | undefined;
-    verifyWebhookSignature(payload, signature, process.env.PAYMENT_WEBHOOK_SECRET ?? "demo-secret");
 
-    const { orderId, status, provider, reference } = req.body ?? {};
-    const normalizedStatus = validatePaymentStatus(status);
-    const payment = await updatePaymentStatusForOrder(orderId, normalizedStatus, {
+    verifyWebhookSignature(
+      payload,
+      signature,
+      process.env.PAYMENT_WEBHOOK_SECRET ?? "demo-secret",
+    );
+
+    const {
+      orderId,
+      status,
       provider,
       reference,
-    });
+      providerEventId,
+    } = req.body ?? {};
+
+    const normalizedStatus = validatePaymentStatus(status);
+
+    const payment = await updatePaymentStatusForOrder(
+      orderId,
+      normalizedStatus,
+      {
+        provider,
+        reference,
+        providerEventId,
+      },
+    );
 
     res.status(200).json({
       success: true,
@@ -37,19 +67,45 @@ export async function deliveryWebhookController(
 ) {
   try {
     const payload = JSON.stringify(req.body ?? {});
-    const signature = req.headers["x-signature"] as string | undefined;
-    verifyWebhookSignature(payload, signature, process.env.DELIVERY_WEBHOOK_SECRET ?? "demo-secret");
 
-    const { orderId, status, courier, trackingCode } = req.body ?? {};
-    const normalizedStatus = normalizeDeliveryStatus(status);
-    const delivery = await updateDeliveryStatusForOrder(orderId, normalizedStatus, {
+    const signature =
+      req.headers["x-signature"] as string | undefined;
+
+    verifyWebhookSignature(
+      payload,
+      signature,
+      process.env.DELIVERY_WEBHOOK_SECRET ??
+        "demo-secret",
+    );
+
+    const {
+      orderId,
+      status,
       courier,
       trackingCode,
-    });
+      provider,
+      providerEventId,
+    } = req.body ?? {};
+
+    const normalizedStatus =
+      normalizeDeliveryStatus(status);
+
+    const delivery =
+      await updateDeliveryStatusForOrder(
+        orderId,
+        normalizedStatus,
+        {
+          courier,
+          trackingCode,
+          provider,
+          providerEventId,
+        },
+      );
 
     res.status(200).json({
       success: true,
-      message: "Delivery webhook processed successfully",
+      message:
+        "Delivery webhook processed successfully",
       data: delivery,
     });
   } catch (error) {

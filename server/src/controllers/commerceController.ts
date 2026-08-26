@@ -11,6 +11,7 @@ import {
   getSellerDashboardSummary,
   getSellerOrdersForBusinessIds,
   updateOrderStatus,
+  cancelOrderForUserOrAuthorizedSeller,
   assignDeliveryToOrder,
   requireAuthorizedSellerForOrder,
 } from "../services/commerceService.js";
@@ -272,6 +273,39 @@ export async function updateOrderStatusController(
     res.status(200).json({
       success: true,
       message: "Order status updated",
+      data: order,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function cancelOrderController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const orderId = Array.isArray(req.params.orderId)
+      ? req.params.orderId[0]
+      : req.params.orderId;
+
+    const order = await cancelOrderForUserOrAuthorizedSeller(
+      req.user,
+      orderId,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully",
       data: order,
     });
   } catch (error) {

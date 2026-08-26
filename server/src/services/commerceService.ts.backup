@@ -365,124 +365,187 @@ export async function cancelOrderForUserOrAuthorizedSeller(
     throw new AppError("Valid orderId is required", 400);
   }
 
-  // Authorization is performed against the authoritative order.
-  const authorizedOrder = await getOrderForCustomerOrAuthorizedSeller(
-    actor,
-    orderId,
-  );
-
-  // Re-fetch as a Mongoose document because cancellation mutates and saves it.
-  const order = await Order.findById(authorizedOrder._id);
-
-  if (!order) {
-    throw new AppError("Order not found", 404);
-  }
-
-  const cancellableStatuses: OrderStatus[] = [
-    "pending",
-    "paid",
-    "confirmed",
-  ];
-
-  if (!cancellableStatuses.includes(order.status as OrderStatus)) {
-    throw new AppError(
-      `Order cannot be cancelled from ${order.status} status`,
-      409,
-    );
-  }
-
-  /*
-   * Restore inventory from the authoritative order items.
-   *
-   * We only restore stock while the order is moving from an active
-   * state to cancelled. A second cancellation is rejected above,
-   * preventing the same stock from being restored twice.
-   */
-  for (const item of order.items) {
-    const result = await Product.updateOne(
-      {
-        _id: item.productId,
-        businessId: item.businessId,
-      },
-      {
-        $inc: { stockQuantity: Number(item.quantity) },
-      },
-    );
-
-    if (result.matchedCount !== 1) {
-      throw new AppError(
-        `Product ${String(item.productId)} could not be restored`,
-        409,
-      );
-    }
-  }
-
-  /*
-   * Refund only a successfully paid payment.
-   *
-   * Pending/failed payments are not incorrectly converted to refunded.
-   */
-  const payment = await Payment.findOne({ orderId: order._id })
-    .sort({ createdAt: -1 });
-
-  if (payment?.status === "paid") {
-    payment.status = "refunded";
-    await payment.save();
-  }
-
-  order.status = "cancelled";
-
-  if (payment) {
-    order.paymentStatus = payment.status;
-  }
-
-  await order.save();
-
-  /*
-   * A delivery that has not started transit cannot continue after
-   * cancellation. Delivery has no dedicated "cancelled" state in
-   * the current schema, so pending/assigned deliveries are marked
-   * failed rather than inventing a new schema state.
-   */
-  const delivery = await Delivery.findOne({ orderId: order._id })
-    .sort({ createdAt: -1 });
-
-  if (
-    delivery &&
-    ["pending", "assigned"].includes(String(delivery.status))
-  ) {
-    delivery.status = "failed";
-
-    (delivery as any).events = Array.isArray((delivery as any).events)
-      ? (delivery as any).events
-      : [];
-
-    (delivery as any).events.push({
-      status: "failed",
-      courier: delivery.provider,
-      trackingCode: delivery.trackingCode,
-      createdAt: new Date(),
-    });
-
-    await delivery.save();
-  }
+  const session = await mongoose.startSession();
 
   try {
-    await notifyOrderStatusChange(
-      String(order.userId),
-      String(order._id),
-      "cancelled",
-    );
-  } catch {
-    // Notification failure must not block cancellation.
+    let result: Record<string, unknown>;
+
+    await session.withTransaction(async () => {
+      /*
+       * Atomically claim the order for cancellation.
+       *
+       * The status condition prevents two concurrent cancellation
+       * requests from both restoring the same inventory.
+       */
+      const order = await Order.findOneAndUpdate(
+        {
+          _id: orderId,
+          status: {
+            $in: ["pending", "paid", "confirmed"],
+          },
+        },
+        {
+          $set: {
+            status: "cancelled",
+          },
+        },
+        {
+          returnDocument: "after",
+          session,
+        },
+      );
+
+      if (!order) {
+        const existingOrder = await Order.findById(orderId)
+          .session(session)
+          .lean();
+
+        if (!existingOrder) {
+          throw new AppError("Order not found", 404);
+        }
+
+        /*
+         * The order exists, but it was either already cancelled
+         * or has progressed beyond the cancellable lifecycle.
+         */
+        if (String(existingOrder.userId) === actor.userId) {
+          throw new AppError(
+            `Order cannot be cancelled from ${existingOrder.status} status`,
+            409,
+          );
+        }
+
+        await requireAuthorizedSellerForOrder(
+          actor,
+          orderId,
+          existingOrder,
+        );
+
+        throw new AppError(
+          `Order cannot be cancelled from ${existingOrder.status} status`,
+          409,
+        );
+      }
+
+      /*
+       * Authorization must still be enforced before mutating
+       * inventory/payment state.
+       */
+      if (String(order.userId) !== actor.userId) {
+        await requireAuthorizedSellerForOrder(
+          actor,
+          orderId,
+          order,
+        );
+      }
+
+      /*
+       * Restore inventory from the authoritative order items.
+       *
+       * These updates participate in the same transaction as the
+       * order cancellation, payment refund, and delivery update.
+       */
+      for (const item of order.items) {
+        const updateResult = await Product.updateOne(
+          {
+            _id: item.productId,
+            businessId: item.businessId,
+          },
+          {
+            $inc: {
+              stockQuantity: Number(item.quantity),
+            },
+          },
+          {
+            session,
+          },
+        );
+
+        if (updateResult.matchedCount !== 1) {
+          throw new AppError(
+            `Product ${String(item.productId)} could not be restored`,
+            409,
+          );
+        }
+      }
+
+      /*
+       * Refund only a successfully paid payment.
+       *
+       * Pending and failed payments remain unchanged.
+       */
+      const payment = await Payment.findOne({
+        orderId: order._id,
+      })
+        .sort({ createdAt: -1 })
+        .session(session);
+
+      if (payment?.status === "paid") {
+        payment.status = "refunded";
+        await payment.save({ session });
+
+        order.paymentStatus = "refunded";
+      } else if (payment) {
+        order.paymentStatus = payment.status;
+      }
+
+      await order.save({ session });
+
+      /*
+       * A delivery that has not entered transit cannot continue
+       * after cancellation.
+       *
+       * The current delivery schema has no "cancelled" status, so
+       * pending/assigned deliveries become failed.
+       */
+      const delivery = await Delivery.findOne({
+        orderId: order._id,
+      })
+        .sort({ createdAt: -1 })
+        .session(session);
+
+      if (
+        delivery &&
+        ["pending", "assigned"].includes(String(delivery.status))
+      ) {
+        delivery.status = "failed";
+
+        delivery.events = Array.isArray(delivery.events)
+          ? delivery.events
+          : [];
+
+        delivery.events.push({
+          status: "failed",
+          courier: delivery.provider,
+          trackingCode: delivery.trackingCode,
+          createdAt: new Date(),
+        });
+
+        await delivery.save({ session });
+      }
+
+      result = order.toObject();
+    });
+
+    /*
+     * Notifications happen after the transaction commits.
+     * A notification failure must never roll back a successful
+     * cancellation.
+     */
+    try {
+      await notifyOrderStatusChange(
+        String(result.userId),
+        String(result._id),
+        "cancelled",
+      );
+    } catch {
+      // Notification failure must not block cancellation.
+    }
+
+    return result;
+  } finally {
+    await session.endSession();
   }
-
-  return order.toObject();
-}
-
-export async function getOrdersForUser(userId: string) {
-  const orders = await Order.find({ userId }).sort({ createdAt: -1 }).lean();
-  return orders;
 }
 
 export async function getOrderByIdForUser(userId: string, orderId: string) {
@@ -753,7 +816,7 @@ export async function createOrderForUser(
   const session = await mongoose.startSession();
 
   try {
-    let result: Record<string, unknown>;
+    let result: Awaited<ReturnType<typeof buildCheckoutResult>>;
 
     await session.withTransaction(async () => {
       const cart = await Cart.findOne({ userId }).session(session).lean();

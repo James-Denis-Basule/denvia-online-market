@@ -10,6 +10,7 @@ export interface IPayment extends Document {
   provider: string;
   method: string;
   reference: string;
+  providerEventId?: string;
   status: PaymentStatus;
   metadata?: Record<string, unknown>;
   createdAt: Date;
@@ -24,44 +25,57 @@ const paymentSchema = new Schema<IPayment>(
       required: true,
       index: true,
     },
+
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true,
     },
+
     amount: {
       type: Number,
       required: true,
       min: 0,
     },
+
     currency: {
       type: String,
       required: true,
       uppercase: true,
       default: "UGX",
     },
+
     provider: {
       type: String,
       required: true,
       trim: true,
     },
+
     method: {
       type: String,
       required: true,
       trim: true,
     },
+
     reference: {
       type: String,
       required: true,
       unique: true,
       trim: true,
     },
+
+    providerEventId: {
+      type: String,
+      trim: true,
+    },
+
     status: {
       type: String,
       enum: ["pending", "paid", "failed", "refunded"],
       default: "pending",
     },
+
     metadata: {
       type: Schema.Types.Mixed,
       default: {},
@@ -69,6 +83,16 @@ const paymentSchema = new Schema<IPayment>(
   },
   {
     timestamps: true,
+  },
+);
+
+paymentSchema.index(
+  { provider: 1, providerEventId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      providerEventId: { $exists: true, $type: "string" },
+    },
   },
 );
 

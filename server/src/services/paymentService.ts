@@ -1,8 +1,14 @@
 import crypto from "node:crypto";
 
 import mongoose from "mongoose";
+
 import Payment from "../models/Payment.js";
+
+import Order from "../models/Order.js";
+
 import { AppError } from "../utils/AppError.js";
+
+import { notifyOrderStatusChange } from "./notificationService.js";
 
 export const PAYMENT_PROVIDERS = {
   mobile_money: { label: "Mobile money" },
@@ -11,6 +17,7 @@ export const PAYMENT_PROVIDERS = {
 } as const;
 
 export type PaymentProvider = keyof typeof PAYMENT_PROVIDERS;
+
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export interface CreatePaymentIntentInput {
@@ -26,7 +33,10 @@ export function normalizePaymentProvider(provider?: string) {
   const normalized = (provider ?? "cash_on_delivery").trim().toLowerCase();
 
   if (!(normalized in PAYMENT_PROVIDERS)) {
-    throw new AppError(`Unsupported payment provider: ${provider ?? "cash_on_delivery"}`, 400);
+    throw new AppError(
+      `Unsupported payment provider: ${provider ?? "cash_on_delivery"}`,
+      400,
+    );
   }
 
   return normalized as PaymentProvider;
@@ -34,10 +44,19 @@ export function normalizePaymentProvider(provider?: string) {
 
 export function validatePaymentStatus(status?: string): PaymentStatus {
   const normalized = (status ?? "pending").trim().toLowerCase();
-  const validStatuses: PaymentStatus[] = ["pending", "paid", "failed", "refunded"];
+
+  const validStatuses: PaymentStatus[] = [
+    "pending",
+    "paid",
+    "failed",
+    "refunded",
+  ];
 
   if (!validStatuses.includes(normalized as PaymentStatus)) {
-    throw new AppError(`Unsupported payment status: ${status ?? "pending"}`, 400);
+    throw new AppError(
+      `Unsupported payment status: ${status ?? "pending"}`,
+      400,
+    );
   }
 
   return normalized as PaymentStatus;
@@ -78,7 +97,10 @@ export function createPaymentIntent({
 export function applyWebhookPaymentState(
   currentStatus: PaymentStatus,
   nextStatus: PaymentStatus,
-  metadata?: { provider?: string; reference?: string },
+  metadata?: {
+    provider?: string;
+    reference?: string;
+  },
 ) {
   const finalStatus = updatePaymentStatus(currentStatus, nextStatus);
 
@@ -89,7 +111,10 @@ export function applyWebhookPaymentState(
   };
 }
 
-export function isPaymentTransitionAllowed(currentStatus: PaymentStatus, nextStatus: PaymentStatus) {
+export function isPaymentTransitionAllowed(
+  currentStatus: PaymentStatus,
+  nextStatus: PaymentStatus,
+) {
   const allowedTransitions: Record<PaymentStatus, PaymentStatus[]> = {
     pending: ["paid", "failed"],
     paid: ["refunded"],
@@ -104,6 +129,17 @@ export function updatePaymentStatus(
   currentStatus: PaymentStatus,
   nextStatus: PaymentStatus,
 ) {
+  /*
+   * Webhook providers may deliver the same event more than once.
+   * A repeated identical status is therefore considered idempotent.
+   *
+   * Provider event IDs provide the stronger event-level
+   * idempotency guarantee in updatePaymentStatusForOrder().
+   */
+  if (currentStatus === nextStatus) {
+    return currentStatus;
+  }
+
   if (!isPaymentTransitionAllowed(currentStatus, nextStatus)) {
     throw new AppError(
       `Payment cannot move from ${currentStatus} to ${nextStatus}`,
@@ -114,28 +150,178 @@ export function updatePaymentStatus(
   return nextStatus;
 }
 
+function getOrderStatusRank(status: string) {
+  const orderRank: Record<string, number> = {
+    pending: 0,
+    paid: 1,
+    confirmed: 2,
+    packed: 3,
+    shipped: 4,
+    completed: 5,
+    cancelled: 6,
+  };
+
+  return orderRank[status] ?? 0;
+}
+
+async function synchronizeOrderPaymentState(
+  orderId: string,
+  paymentStatus: PaymentStatus,
+) {
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  order.paymentStatus = paymentStatus;
+
+  /*
+   * A successful payment moves a still-pending order to paid.
+   *
+   * We deliberately do not move an order backwards. For example:
+   * confirmed -> paid must never happen merely because a webhook
+   * arrived late.
+   */
+  if (
+    paymentStatus === "paid" &&
+    getOrderStatusRank(String(order.status)) < getOrderStatusRank("paid")
+  ) {
+    order.status = "paid";
+  }
+
+  /*
+   * Failed or pending payments do not automatically regress the
+   * order lifecycle. A later webhook must not turn a progressed
+   * order back into pending.
+   */
+  await order.save();
+
+  if (paymentStatus === "paid") {
+    try {
+      await notifyOrderStatusChange(
+        String(order.userId),
+        String(order._id),
+        "paid",
+      );
+    } catch {
+      // Notification failure must not block payment synchronization.
+    }
+  }
+
+  return order;
+}
+
+function isDuplicateKeyError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === 11000
+  );
+}
+
 export async function updatePaymentStatusForOrder(
   orderId: string,
   nextStatus: PaymentStatus,
-  metadata?: { provider?: string; reference?: string },
+  metadata?: {
+    provider?: string;
+    reference?: string;
+    providerEventId?: string;
+  },
 ) {
   if (!mongoose.isValidObjectId(orderId)) {
     throw new AppError("Valid orderId is required", 400);
   }
 
-  const payment = await Payment.findOne({ orderId }).sort({ createdAt: -1 });
+  const normalizedNextStatus = validatePaymentStatus(nextStatus);
+
+  const provider = metadata?.provider?.trim();
+  const providerEventId = metadata?.providerEventId?.trim();
+
+  /*
+   * Provider event IDs provide event-level idempotency.
+   *
+   * If the exact provider event has already been processed,
+   * return the persisted payment immediately. We deliberately
+   * do not update the payment or order again.
+   */
+  if (provider && providerEventId) {
+    const existingPayment = await Payment.findOne({
+      provider,
+      providerEventId,
+    }).lean();
+
+    if (existingPayment) {
+      return existingPayment;
+    }
+  }
+
+  const payment = await Payment.findOne({ orderId }).sort({
+    createdAt: -1,
+  });
 
   if (!payment) {
     throw new AppError("Payment record not found", 404);
   }
 
   const currentStatus = validatePaymentStatus(payment.status);
-  const finalStatus = updatePaymentStatus(currentStatus, nextStatus);
+
+  /*
+   * Preserve the existing transition validation.
+   *
+   * This still protects the payment lifecycle even when the
+   * provider event ID is new.
+   */
+  const finalStatus = updatePaymentStatus(currentStatus, normalizedNextStatus);
+
+  if (provider) {
+    payment.provider = provider;
+  }
+
+  if (metadata?.reference) {
+    payment.reference = metadata.reference;
+  }
+
+  if (providerEventId) {
+    payment.providerEventId = providerEventId;
+  }
 
   payment.status = finalStatus;
-  if (metadata?.provider) payment.provider = metadata.provider;
-  if (metadata?.reference) payment.reference = metadata.reference;
-  await payment.save();
+
+  try {
+    await payment.save();
+  } catch (error) {
+    /*
+     * Two identical webhook requests can arrive at almost exactly
+     * the same time. Both may pass the initial lookup before either
+     * request saves the event ID.
+     *
+     * The unique compound index on provider + providerEventId is
+     * the final concurrency guard. If another request already won,
+     * return that persisted payment instead of processing the event
+     * a second time.
+     */
+    if (provider && providerEventId && isDuplicateKeyError(error)) {
+      const existingPayment = await Payment.findOne({
+        provider,
+        providerEventId,
+      }).lean();
+
+      if (existingPayment) {
+        return existingPayment;
+      }
+    }
+
+    throw error;
+  }
+
+  /*
+   * Keep the order's paymentStatus synchronized with the
+   * authoritative payment record and advance a pending order
+   * to paid after success.
+   */
+  await synchronizeOrderPaymentState(String(payment.orderId), finalStatus);
 
   return payment.toObject();
 }
