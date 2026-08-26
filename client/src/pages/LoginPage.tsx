@@ -6,13 +6,14 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import Container from '../components/layout/Container';
 
-import { loginUser } from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 
 const LOGO_URL =
   'https://res.cloudinary.com/dy3a8sgs7/image/upload/v1787605738/ChatGPT_Image_Aug_22_2026_at_01_25_02_AM_kbz3h0.png';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,7 +27,7 @@ function LoginPage() {
       setLoading(true);
       setError('');
 
-      await loginUser(email, password);
+      await login(email, password);
 
       navigate('/dashboard');
     } catch (err: any) {
