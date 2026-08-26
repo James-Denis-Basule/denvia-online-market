@@ -1,12 +1,18 @@
 import api from './api';
 
+export interface DiscoveryBusinessLocation {
+  country?: string;
+  city?: string;
+  address?: string;
+}
+
 export interface DiscoveryBusiness {
   _id: string;
   name: string;
   slug: string;
   description?: string;
   category?: string;
-  location?: string;
+  location?: DiscoveryBusinessLocation;
   logo?: string;
   coverImage?: string;
   website?: string;
