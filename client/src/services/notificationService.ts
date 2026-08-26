@@ -37,18 +37,25 @@ export async function getNotifications(limit = 5, unreadOnly = false) {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    return demoNotifications.filter((notification) => !unreadOnly || !notification.isRead).slice(0, limit);
+    return demoNotifications
+      .filter((notification) => !unreadOnly || !notification.isRead)
+      .slice(0, limit);
   }
 
   try {
-    const response = await api.get(`/notifications?limit=${limit}${unreadOnly ? '&unread=true' : ''}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const response = await api.get(
+      `/notifications?limit=${limit}${unreadOnly ? '&unread=true' : ''}`,
+    );
 
-    const notifications = Array.isArray(response.data?.data) ? response.data.data : [];
+    const notifications = Array.isArray(response.data?.data)
+      ? response.data.data
+      : [];
+
     return notifications;
   } catch {
-    return demoNotifications.filter((notification) => !unreadOnly || !notification.isRead).slice(0, limit);
+    return demoNotifications
+      .filter((notification) => !unreadOnly || !notification.isRead)
+      .slice(0, limit);
   }
 }
 
@@ -57,7 +64,9 @@ export async function markNotificationAsRead(notificationId: string) {
 
   if (!token) {
     return demoNotifications.map((notification) =>
-      notification._id === notificationId ? { ...notification, isRead: true } : notification,
+      notification._id === notificationId
+        ? { ...notification, isRead: true }
+        : notification,
     );
   }
 
@@ -65,11 +74,14 @@ export async function markNotificationAsRead(notificationId: string) {
     const response = await api.patch(
       `/notifications/${notificationId}/read`,
       {},
-      { headers: { Authorization: `Bearer ${token}` } },
     );
 
     return response.data?.data ?? null;
   } catch {
-    return demoNotifications.find((notification) => notification._id === notificationId) ?? null;
+    return (
+      demoNotifications.find(
+        (notification) => notification._id === notificationId,
+      ) ?? null
+    );
   }
 }
