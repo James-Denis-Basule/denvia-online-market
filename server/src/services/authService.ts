@@ -1,16 +1,16 @@
-import User from '../models/User.js';
+import User from "../models/User.js";
 
-import { hashPassword, comparePassword } from '../utils/password.js';
+import { hashPassword, comparePassword } from "../utils/password.js";
 
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-} from '../utils/jwt.js';
+} from "../utils/jwt.js";
 
-import { AppError } from '../utils/AppError.js';
+import { AppError } from "../utils/AppError.js";
 
-import type { RegisterInput } from '../types/auth.js';
+import type { RegisterInput } from "../types/auth.js";
 
 export async function registerUser(input: RegisterInput) {
   const existingUser = await User.findOne({
@@ -42,37 +42,30 @@ export async function registerUser(input: RegisterInput) {
   };
 }
 
-export async function loginUser(
-  email: string,
-  password: string,
-) {
+export async function loginUser(email: string, password: string) {
   const user = await User.findOne({
     email: email.toLowerCase().trim(),
-  }).select('+password');
+  }).select("+password");
 
   if (!user) {
-    throw new AppError(
-      'Invalid email or password',
-      401,
-    );
+    throw new AppError("Invalid email or password", 401);
   }
+
 
   if (!user.isActive) {
-    throw new AppError(
-      'This account has been deactivated',
-      403,
-    );
+    throw new AppError("This account has been deactivated", 403);
   }
 
-  const passwordMatches = await comparePassword(
-    password,
-    user.password,
-  );
+  const passwordMatches = await comparePassword(password, user.password);
 
   if (!passwordMatches) {
+    throw new AppError("Invalid email or password", 401);
+  }
+
+  if (!user.isEmailVerified) {
     throw new AppError(
-      'Invalid email or password',
-      401,
+      "Please verify your email address before logging in",
+      403,
     );
   }
 
@@ -81,9 +74,7 @@ export async function loginUser(
     role: user.role,
   });
 
-  const refreshToken = generateRefreshToken(
-    user._id.toString(),
-  );
+  const refreshToken = generateRefreshToken(user._id.toString());
 
   user.refreshToken = refreshToken;
 
@@ -104,50 +95,31 @@ export async function loginUser(
   };
 }
 
-export async function refreshUserAccessToken(
-  refreshToken: string,
-) {
+export async function refreshUserAccessToken(refreshToken: string) {
   let payload: { userId: string };
 
   try {
     payload = verifyRefreshToken(refreshToken);
   } catch {
-    throw new AppError(
-      'Invalid or expired refresh token',
-      401,
-    );
+    throw new AppError("Invalid or expired refresh token", 401);
   }
 
-  const user = await User.findById(payload.userId).select(
-    '+refreshToken',
-  );
+  const user = await User.findById(payload.userId).select("+refreshToken");
 
   if (!user) {
-    throw new AppError(
-      'User account not found',
-      404,
-    );
+    throw new AppError("User account not found", 404);
   }
 
   if (!user.isActive) {
-    throw new AppError(
-      'This account has been deactivated',
-      403,
-    );
+    throw new AppError("This account has been deactivated", 403);
   }
 
   if (!user.refreshToken) {
-    throw new AppError(
-      'Refresh token is no longer valid',
-      401,
-    );
+    throw new AppError("Refresh token is no longer valid", 401);
   }
 
   if (user.refreshToken !== refreshToken) {
-    throw new AppError(
-      'Refresh token is no longer valid',
-      401,
-    );
+    throw new AppError("Refresh token is no longer valid", 401);
   }
 
   const accessToken = generateAccessToken({
@@ -161,9 +133,7 @@ export async function refreshUserAccessToken(
    * The previous refresh token becomes invalid immediately
    * because only the newly generated token is stored.
    */
-  const newRefreshToken = generateRefreshToken(
-    user._id.toString(),
-  );
+  const newRefreshToken = generateRefreshToken(user._id.toString());
 
   user.refreshToken = newRefreshToken;
 
@@ -178,7 +148,7 @@ export async function refreshUserAccessToken(
 export async function logoutUser(refreshToken: string) {
   const user = await User.findOne({
     refreshToken,
-  }).select('+refreshToken');
+  }).select("+refreshToken");
 
   if (user) {
     user.refreshToken = undefined;

@@ -1,6 +1,10 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export type UserRole = "user" | "business_owner" | "business_staff" | "admin";
+export type UserRole =
+  | "user"
+  | "business_owner"
+  | "business_staff"
+  | "admin";
 
 export interface IUser extends Document {
   firstName: string;
@@ -11,6 +15,8 @@ export interface IUser extends Document {
   role: UserRole;
   isActive: boolean;
   isEmailVerified: boolean;
+  emailVerificationTokenHash?: string;
+  emailVerificationExpiresAt?: Date;
   refreshToken?: string;
   refreshTokenExpiresAt?: Date;
   createdAt: Date;
@@ -71,7 +77,17 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
-    
+
+    emailVerificationTokenHash: {
+      type: String,
+      select: false,
+    },
+
+    emailVerificationExpiresAt: {
+      type: Date,
+      select: false,
+    },
+
     refreshToken: {
       type: String,
       select: false,
