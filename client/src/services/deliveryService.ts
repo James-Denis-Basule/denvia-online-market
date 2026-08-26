@@ -1,6 +1,11 @@
 import api from './api';
 
-export type DeliveryEvent = { status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'failed'; courier?: string; trackingCode?: string; createdAt?: string };
+export type DeliveryEvent = {
+  status: 'pending' | 'assigned' | 'in_transit' | 'delivered' | 'failed';
+  courier?: string;
+  trackingCode?: string;
+  createdAt?: string;
+};
 
 export type DeliveryRecord = {
   orderId: string;
@@ -20,14 +25,16 @@ export async function getDelivery(orderId: string) {
     return null;
   }
 
-  const response = await api.get(`/marketplace/orders/${orderId}/delivery`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await api.get(`/marketplace/orders/${orderId}/delivery`);
 
   return response.data.data as DeliveryRecord | null;
 }
 
-export async function updateDeliveryStatus(orderId: string, status: string, metadata?: { courier?: string; trackingCode?: string }) {
+export async function updateDeliveryStatus(
+  orderId: string,
+  status: string,
+  metadata?: { courier?: string; trackingCode?: string },
+) {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
@@ -52,7 +59,6 @@ export async function updateDeliveryStatus(orderId: string, status: string, meta
   const response = await api.patch(
     `/marketplace/orders/${orderId}/delivery/status`,
     { status, ...metadata },
-    { headers: { Authorization: `Bearer ${token}` } },
   );
 
   return response.data.data as DeliveryRecord;
