@@ -2,6 +2,9 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
+const LOGO_URL =
+  'https://res.cloudinary.com/dy3a8sgs7/image/upload/v1787605738/ChatGPT_Image_Aug_22_2026_at_01_25_02_AM_kbz3h0.png';
+
 function MainLayout() {
   const auth = useContext(AuthContext);
   const location = useLocation();
@@ -75,7 +78,11 @@ function MainLayout() {
             className="group flex min-w-0 shrink-0 items-center gap-3"
           >
             <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-lg font-black text-white shadow-md shadow-blue-200 transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-blue-200">
-              <span className="relative z-10">D</span>
+              <img
+                src={LOGO_URL}
+                alt="Denvia Online Market"
+                className="relative z-10 h-full w-full object-contain"
+              />
               <span className="absolute -right-3 -top-3 h-8 w-8 rounded-full bg-white/15" />
               <span className="absolute -bottom-4 -left-2 h-7 w-7 rounded-full bg-white/10" />
             </span>
@@ -228,8 +235,13 @@ function MainLayout() {
         <div className="border-b border-blue-100/80 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-600 text-[10px] font-black text-white shadow-sm">
-                D
+              <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-blue-100">
+                <img
+                  src={LOGO_URL}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-full w-full object-contain"
+                />
               </span>
 
               <span className="text-xs font-bold uppercase tracking-[0.16em] text-blue-800">
