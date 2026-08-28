@@ -1,10 +1,6 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
-export type UserRole =
-  | "user"
-  | "business_owner"
-  | "business_staff"
-  | "admin";
+export type UserRole = "user" | "business_owner" | "business_staff" | "admin";
 
 export interface IUser extends Document {
   firstName: string;
@@ -19,6 +15,7 @@ export interface IUser extends Document {
   emailVerificationExpiresAt?: Date;
   refreshToken?: string;
   refreshTokenExpiresAt?: Date;
+  activeBusinessId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -96,6 +93,13 @@ const userSchema = new Schema<IUser>(
     refreshTokenExpiresAt: {
       type: Date,
       select: false,
+    },
+
+    activeBusinessId: {
+      type: Schema.Types.ObjectId,
+      ref: "Business",
+      default: undefined,
+      index: true,
     },
   },
   {

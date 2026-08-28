@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Business from "../models/Business.js";
+import User from "../models/User.js";
 import { AppError } from "../utils/AppError.js";
 import { getPagination } from "../utils/pagination.js";
 import { generateSlug } from "../utils/slug.js";
@@ -24,7 +25,7 @@ export async function createBusiness(
     throw new AppError("A business with this name already exists", 409);
   }
 
-  const business = await Business.create({
+    const business = await Business.create({
     ownerId,
     slug,
     name: input.name,
@@ -41,6 +42,18 @@ export async function createBusiness(
     website: input.website,
   });
 
+  const user = await User.findById(ownerId).select("+activeBusinessId");
+
+  if (!user) {
+    await Business.findByIdAndDelete(business._id);
+    throw new AppError("User account not found", 404);
+  }
+
+  if (!user.activeBusinessId) {
+    user.activeBusinessId = business._id;
+    await user.save();
+  }
+
   return business;
 }
 
@@ -48,6 +61,38 @@ export async function getMyBusinesses(ownerId: string) {
   return Business.find({ ownerId }).sort({
     createdAt: -1,
   });
+}
+
+export async function selectBusiness(
+  businessId: string,
+  ownerId: string,
+) {
+  if (!mongoose.isValidObjectId(businessId)) {
+    throw new AppError("Invalid business ID", 400);
+  }
+
+  const business = await Business.findOne({
+    _id: businessId,
+    ownerId,
+  });
+
+  if (!business) {
+    throw new AppError(
+      "Business not found or you do not have permission to select it",
+      404,
+    );
+  }
+
+  const user = await User.findById(ownerId);
+
+  if (!user) {
+    throw new AppError("User account not found", 404);
+  }
+
+  user.activeBusinessId = business._id;
+  await user.save();
+
+  return business;
 }
 
 export async function getBusinessById(businessId: string, ownerId: string) {

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import User from "../models/User.js";
 import { loginSchema, registerSchema } from "../types/auth.js";
+import Business from "../models/Business.js";
 import {
   loginUser,
   logoutUser,
@@ -51,9 +52,7 @@ export async function verifyEmailAddress(
 ) {
   try {
     const token =
-      typeof req.body?.token === "string"
-        ? req.body.token.trim()
-        : "";
+      typeof req.body?.token === "string" ? req.body.token.trim() : "";
 
     if (!token) {
       throw new AppError("Email verification token is required", 400);
@@ -128,6 +127,21 @@ export async function getCurrentUser(
       throw new AppError("User account not found", 404);
     }
 
+    let activeBusiness = null;
+
+    if (user.activeBusinessId) {
+      activeBusiness = await Business.findOne({
+        _id: user.activeBusinessId,
+        ownerId: user._id,
+        status: { $ne: "suspended" },
+      });
+    }
+
+    if (user.activeBusinessId && !activeBusiness) {
+      user.activeBusinessId = undefined;
+      await user.save();
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -144,6 +158,14 @@ export async function getCurrentUser(
           updatedAt: user.updatedAt,
         },
       },
+      activeBusiness: activeBusiness
+        ? {
+            id: activeBusiness._id.toString(),
+            name: activeBusiness.name,
+            slug: activeBusiness.slug,
+            logo: activeBusiness.logo,
+          }
+        : null,
     });
   } catch (error) {
     next(error);

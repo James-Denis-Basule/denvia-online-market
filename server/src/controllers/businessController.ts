@@ -6,6 +6,7 @@ import {
   createBusiness,
   getBusinessById,
   getMyBusinesses,
+  selectBusiness,
   updateBusiness,
   deleteBusiness,
   getPublicBusinesses,
@@ -20,9 +21,7 @@ import {
   updateBusinessSchema,
 } from "../types/business.js";
 
-import {
-  publicProductQuerySchema,
-} from "../types/product.js";
+import { publicProductQuerySchema } from "../types/product.js";
 
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 
@@ -78,6 +77,33 @@ export async function getMyBusinessesController(
       success: true,
       data: {
         businesses,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function selectBusinessController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const business = await selectBusiness(
+      String(req.params.id),
+      req.user.userId,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Business selected successfully",
+      data: {
+        business,
       },
     });
   } catch (error) {
@@ -178,9 +204,7 @@ export async function getPublicBusinessesController(
   next: NextFunction,
 ) {
   try {
-    const validation = publicBusinessQuerySchema.safeParse(
-      req.query,
-    );
+    const validation = publicBusinessQuerySchema.safeParse(req.query);
 
     if (!validation.success) {
       res.status(400).json({
@@ -192,9 +216,7 @@ export async function getPublicBusinessesController(
       return;
     }
 
-    const result = await getPublicBusinesses(
-      validation.data,
-    );
+    const result = await getPublicBusinesses(validation.data);
 
     res.status(200).json({
       success: true,
@@ -230,9 +252,7 @@ export async function getPublicBusinessProductsController(
   next: NextFunction,
 ) {
   try {
-    const validation = publicProductQuerySchema.safeParse(
-      req.query,
-    );
+    const validation = publicProductQuerySchema.safeParse(req.query);
 
     if (!validation.success) {
       res.status(400).json({
@@ -265,9 +285,7 @@ export async function getBusinessWhatsAppLinkController(
 ) {
   try {
     const message =
-      typeof req.query.message === "string"
-        ? req.query.message
-        : undefined;
+      typeof req.query.message === "string" ? req.query.message : undefined;
 
     const result = await getBusinessWhatsAppLink(
       String(req.params.businessId),

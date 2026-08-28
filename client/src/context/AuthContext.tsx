@@ -78,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     try {
       const response = await getCurrentUser();
-      const currentUser = response.data?.user ?? response.user;
+      const currentUser = response.data?.user;
 
       if (!currentUser) {
         throw new Error('Unable to restore authenticated user.');

@@ -1,4 +1,10 @@
-import api from './api';
+import api from "./api";
+export interface ActiveBusiness {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: string;
+}
 
 export interface AuthUser {
   id: string;
@@ -8,6 +14,10 @@ export interface AuthUser {
   phone?: string;
   role: string;
   isEmailVerified: boolean;
+  isActive?: boolean;
+  activeBusiness?: ActiveBusiness | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface LoginResponse {
@@ -28,15 +38,15 @@ interface RegisterResponse {
 }
 
 export async function loginUser(email: string, password: string) {
-  const response = await api.post<LoginResponse>('/auth/login', {
+  const response = await api.post<LoginResponse>("/auth/login", {
     email,
     password,
   });
 
   const { accessToken, user } = response.data.data;
 
-  localStorage.setItem('accessToken', accessToken);
-  localStorage.setItem('authUser', JSON.stringify(user));
+  localStorage.setItem("accessToken", accessToken);
+  localStorage.setItem("authUser", JSON.stringify(user));
 
   return response.data;
 }
@@ -48,26 +58,30 @@ export async function registerUser(payload: {
   password: string;
   phone?: string;
 }) {
-  const response = await api.post<RegisterResponse>(
-    '/auth/register',
-    payload,
-  );
+  const response = await api.post<RegisterResponse>("/auth/register", payload);
 
   return response.data;
 }
 
 export async function verifyEmail(token: string) {
-  const response = await api.post('/auth/verify-email', {
+  const response = await api.post("/auth/verify-email", {
     token,
   });
 
   return response.data;
 }
 
-export async function getCurrentUser() {
-  const token = localStorage.getItem('accessToken');
+interface CurrentUserResponse {
+  success: boolean;
+  data: {
+    user: AuthUser;
+  };
+}
 
-  const response = await api.get('/auth/me', {
+export async function getCurrentUser() {
+  const token = localStorage.getItem("accessToken");
+
+  const response = await api.get<CurrentUserResponse>("/auth/me", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -78,9 +92,9 @@ export async function getCurrentUser() {
 
 export async function logoutUser() {
   try {
-    await api.post('/auth/logout');
+    await api.post("/auth/logout");
   } finally {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('authUser');
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("authUser");
   }
 }
