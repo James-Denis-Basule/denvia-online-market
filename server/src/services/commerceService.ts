@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Business from "../models/Business.js";
+import User from "../models/User.js";
 import Cart from "../models/Cart.js";
 import Order, { type OrderStatus } from "../models/Order.js";
 import Payment from "../models/Payment.js";
@@ -818,6 +819,15 @@ export async function createOrderForUser(
     let result: Record<string, unknown>;
 
     await session.withTransaction(async () => {
+      const customer = await User.findById(userId)
+        .select("firstName lastName email phone")
+        .session(session)
+        .lean();
+
+      if (!customer) {
+        throw new AppError("User not found", 404);
+      }
+
       const cart = await Cart.findOne({ userId }).session(session).lean();
 
       const sourceItems: CartItemInput[] = payload?.items?.length
@@ -885,6 +895,12 @@ export async function createOrderForUser(
         [
           {
             userId,
+            customer: {
+              firstName: customer.firstName,
+              lastName: customer.lastName,
+              email: customer.email,
+              ...(customer.phone ? { phone: customer.phone } : {}),
+            },
             items: orderData.items.map((item) => ({
               ...item,
               productId: new mongoose.Types.ObjectId(item.productId),

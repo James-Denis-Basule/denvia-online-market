@@ -47,6 +47,11 @@ async function createPaymentFixture() {
 
   const order = await Order.create({
     userId: user._id,
+    customer: {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+    },
     items: [
       {
         productId,
@@ -103,6 +108,11 @@ async function createDeliveryFixture() {
 
   const order = await Order.create({
     userId: user._id,
+    customer: {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+    },
     items: [
       {
         productId,

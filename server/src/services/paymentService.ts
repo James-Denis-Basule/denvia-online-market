@@ -167,8 +167,9 @@ function getOrderStatusRank(status: string) {
 async function synchronizeOrderPaymentState(
   orderId: string,
   paymentStatus: PaymentStatus,
+  session: mongoose.ClientSession,
 ) {
-  const order = await Order.findById(orderId);
+  const order = await Order.findById(orderId).session(session);
 
   if (!order) {
     throw new AppError("Order not found", 404);
@@ -195,7 +196,7 @@ async function synchronizeOrderPaymentState(
    * order lifecycle. A later webhook must not turn a progressed
    * order back into pending.
    */
-  await order.save();
+  await order.save({ session });
 
   if (paymentStatus === "paid") {
     try {
@@ -235,16 +236,13 @@ export async function updatePaymentStatusForOrder(
   }
 
   const normalizedNextStatus = validatePaymentStatus(nextStatus);
-
   const provider = metadata?.provider?.trim();
   const providerEventId = metadata?.providerEventId?.trim();
 
   /*
-   * Provider event IDs provide event-level idempotency.
+   * Fast-path provider-event idempotency check.
    *
-   * If the exact provider event has already been processed,
-   * return the persisted payment immediately. We deliberately
-   * do not update the payment or order again.
+   * The database unique index remains the final concurrency guard.
    */
   if (provider && providerEventId) {
     const existingPayment = await Payment.findOne({
@@ -257,52 +255,83 @@ export async function updatePaymentStatusForOrder(
     }
   }
 
-  const payment = await Payment.findOne({ orderId }).sort({
-    createdAt: -1,
-  });
-
-  if (!payment) {
-    throw new AppError("Payment record not found", 404);
-  }
-
-  const currentStatus = validatePaymentStatus(payment.status);
-
-  /*
-   * Preserve the existing transition validation.
-   *
-   * This still protects the payment lifecycle even when the
-   * provider event ID is new.
-   */
-  const finalStatus = updatePaymentStatus(currentStatus, normalizedNextStatus);
-
-  if (provider) {
-    payment.provider = provider;
-  }
-
-  if (metadata?.reference) {
-    payment.reference = metadata.reference;
-  }
-
-  if (providerEventId) {
-    payment.providerEventId = providerEventId;
-  }
-
-  payment.status = finalStatus;
+  const session = await mongoose.startSession();
+  let result: any;
 
   try {
-    await payment.save();
+    await session.withTransaction(async () => {
+      /*
+       * Re-check inside the transaction because two concurrent
+       * webhook requests can pass the initial lookup together.
+       */
+      if (provider && providerEventId) {
+        const existingPayment = await Payment.findOne({
+          provider,
+          providerEventId,
+        })
+          .session(session)
+          .lean();
+
+        if (existingPayment) {
+          result = existingPayment;
+          return;
+        }
+      }
+
+      const payment = await Payment.findOne({ orderId })
+        .sort({ createdAt: -1 })
+        .session(session);
+
+      if (!payment) {
+        throw new AppError("Payment record not found", 404);
+      }
+
+      const currentStatus = validatePaymentStatus(payment.status);
+
+      const finalStatus = updatePaymentStatus(
+        currentStatus,
+        normalizedNextStatus,
+      );
+
+      if (provider) {
+        payment.provider = provider;
+      }
+
+      if (metadata?.reference) {
+        payment.reference = metadata.reference;
+      }
+
+      if (providerEventId) {
+        payment.providerEventId = providerEventId;
+      }
+
+      payment.status = finalStatus;
+
+      await payment.save({ session });
+
+      /*
+       * Payment and order payment state are now committed
+       * atomically in the same transaction.
+       */
+      await synchronizeOrderPaymentState(
+        String(payment.orderId),
+        finalStatus,
+        session,
+      );
+
+      result = payment.toObject();
+    });
   } catch (error) {
     /*
-     * Two identical webhook requests can arrive at almost exactly
-     * the same time. Both may pass the initial lookup before either
-     * request saves the event ID.
-     *
-     * The unique compound index on provider + providerEventId is
-     * the final concurrency guard. If another request already won,
-     * return that persisted payment instead of processing the event
-     * a second time.
+     * Concurrent identical webhook requests can both pass the
+     * initial lookup. The unique provider + providerEventId index
+     * guarantees that only one can commit the event.
      */
-    if (provider && providerEventId && isDuplicateKeyError(error)) {
+    if (
+      provider &&
+      providerEventId &&
+      isDuplicateKeyError(error)
+    ) {
       const existingPayment = await Payment.findOne({
         provider,
         providerEventId,
@@ -314,14 +343,9 @@ export async function updatePaymentStatusForOrder(
     }
 
     throw error;
+  } finally {
+    await session.endSession();
   }
 
-  /*
-   * Keep the order's paymentStatus synchronized with the
-   * authoritative payment record and advance a pending order
-   * to paid after success.
-   */
-  await synchronizeOrderPaymentState(String(payment.orderId), finalStatus);
-
-  return payment.toObject();
+  return result;
 }

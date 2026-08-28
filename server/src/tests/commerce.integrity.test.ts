@@ -305,6 +305,11 @@ test("order cancellation atomically restores stock, refunds paid payment, and fa
 
     const order = await Order.create({
       userId: customer._id,
+      customer: {
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        email: customer.email,
+      },
       items: [
         {
           productId: product._id,

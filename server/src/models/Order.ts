@@ -25,7 +25,7 @@ export interface IOrderCustomer {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  phone?: string;
 }
 
 export interface IOrder extends Document {
@@ -118,7 +118,6 @@ const orderSchema = new Schema<IOrder>(
       },
       phone: {
         type: String,
-        required: true,
         trim: true,
       },
     },

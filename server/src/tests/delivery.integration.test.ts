@@ -32,6 +32,11 @@ test("delivery lifecycle updates delivery and order statuses atomically", async 
 
     const order = await Order.create({
       userId,
+      customer: {
+        firstName: "Integration",
+        lastName: "Customer",
+        email: "integration-customer@example.com",
+      },
       items: [
         {
           productId,
@@ -152,6 +157,11 @@ test("delivery/order synchronization rolls back atomically when order update fai
 
     const order = await Order.create({
       userId,
+      customer: {
+        firstName: "Integration",
+        lastName: "Customer",
+        email: "integration-customer@example.com",
+      },
       items: [
         {
           productId,

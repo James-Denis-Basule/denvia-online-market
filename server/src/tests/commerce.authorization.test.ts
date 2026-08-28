@@ -87,6 +87,12 @@ test("commerce operations enforce customer ownership and seller business ownersh
     ) =>
       Order.create({
         userId,
+        customer: {
+          firstName: "Test",
+          lastName: "Customer",
+          email: "test-customer@example.com",
+          phone: "+256700000000",
+        },
         items: [
           {
             productId: new mongoose.Types.ObjectId(),
@@ -110,6 +116,12 @@ test("commerce operations enforce customer ownership and seller business ownersh
       createOrder(customerB._id, businessB._id),
       Order.create({
         userId: customerA._id,
+        customer: {
+          firstName: "Customer",
+          lastName: "A",
+          email: "customer-a@example.com",
+          phone: "+256700000001",
+        },
         items: [
           {
             productId: new mongoose.Types.ObjectId(),
