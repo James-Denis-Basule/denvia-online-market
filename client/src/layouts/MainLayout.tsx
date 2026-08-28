@@ -17,8 +17,6 @@ function MainLayout() {
     { label: 'Home', to: '/' },
     { label: 'Businesses', to: '/businesses' },
     { label: 'Products', to: '/products' },
-    { label: 'Cart', to: '/cart' },
-    { label: 'Orders', to: '/orders' },
   ];
 
   const authenticatedNavigation = [
@@ -68,9 +66,9 @@ function MainLayout() {
     ].join(' ');
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col">
       {/* Main navigation */}
-      <header className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/90 shadow-sm backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-gray-200/70 bg-white/75 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex min-h-[4.5rem] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* Brand */}
           <Link
@@ -197,7 +195,7 @@ function MainLayout() {
         </div>
 
         {/* Mobile navigation */}
-        <div className="border-t border-gray-100/80 bg-white/80 md:hidden">
+        <div className="border-t border-gray-200/60 bg-white/70 backdrop-blur-xl md:hidden">
           <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-6 lg:px-8">
             {navigation.map((item) => (
               <NavLink
