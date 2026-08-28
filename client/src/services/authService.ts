@@ -56,6 +56,14 @@ export async function registerUser(payload: {
   return response.data;
 }
 
+export async function verifyEmail(token: string) {
+  const response = await api.post('/auth/verify-email', {
+    token,
+  });
+
+  return response.data;
+}
+
 export async function getCurrentUser() {
   const token = localStorage.getItem('accessToken');
 

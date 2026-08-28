@@ -26,6 +26,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@google/genai": "^2.19.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.1",
     "cookie-parser": "^1.4.7",

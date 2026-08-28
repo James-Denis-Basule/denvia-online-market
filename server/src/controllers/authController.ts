@@ -6,7 +6,8 @@ import {
   logoutUser,
   refreshUserAccessToken,
   registerUser,
-} from '../services/authService.js';
+  verifyEmail,
+} from "../services/authService.js";
 import { AppError } from "../utils/AppError.js";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import authConfig from "../config/auth.js";
@@ -37,6 +38,34 @@ export async function register(
       data: {
         user,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function verifyEmailAddress(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const token =
+      typeof req.body?.token === "string"
+        ? req.body.token.trim()
+        : "";
+
+    if (!token) {
+      throw new AppError("Email verification token is required", 400);
+    }
+
+    const result = await verifyEmail(token);
+
+    res.status(200).json({
+      success: true,
+      message: result.alreadyVerified
+        ? "Email address is already verified"
+        : "Email address verified successfully",
     });
   } catch (error) {
     next(error);
@@ -127,30 +156,21 @@ export async function refreshAccessToken(
   next: NextFunction,
 ) {
   try {
-    const refreshToken =
-      req.cookies?.[authConfig.refreshCookieName];
+    const refreshToken = req.cookies?.[authConfig.refreshCookieName];
 
     if (!refreshToken) {
-      throw new AppError(
-        'Refresh token required',
-        401,
-      );
+      throw new AppError("Refresh token required", 401);
     }
 
-    const result =
-      await refreshUserAccessToken(refreshToken);
+    const result = await refreshUserAccessToken(refreshToken);
 
-    res.cookie(
-      authConfig.refreshCookieName,
-      result.refreshToken,
-      {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: "/api/auth",
-      },
-    );
+    res.cookie(authConfig.refreshCookieName, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/api/auth",
+    });
 
     res.status(200).json({
       success: true,
@@ -163,32 +183,24 @@ export async function refreshAccessToken(
   }
 }
 
-export async function logout(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
+export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
-    const refreshToken =
-      req.cookies?.[authConfig.refreshCookieName];
+    const refreshToken = req.cookies?.[authConfig.refreshCookieName];
 
     if (refreshToken) {
       await logoutUser(refreshToken);
     }
 
-    res.clearCookie(
-      authConfig.refreshCookieName,
-      {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/api/auth',
-      },
-    );
+    res.clearCookie(authConfig.refreshCookieName, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/api/auth",
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Logged out successfully',
+      message: "Logged out successfully",
     });
   } catch (error) {
     next(error);

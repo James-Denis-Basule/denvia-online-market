@@ -431,12 +431,10 @@ function DashboardPage() {
                 </div>
               </Card>
 
-              <Card>
-                <h3 className="text-lg font-semibold text-gray-900">Ask analytics (beta)</h3>
-                <div className="mt-3">
-                  <ChatWidget />
-                </div>
-              </Card>
+            </div>
+
+            <div className="mt-8">
+              <ChatWidget />
             </div>
 
             <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">

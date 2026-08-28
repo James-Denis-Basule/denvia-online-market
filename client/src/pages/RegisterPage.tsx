@@ -44,7 +44,7 @@ function RegisterPage() {
         phone: phone || undefined,
       });
 
-      navigate('/login');
+      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
     } catch (err: any) {
       const response = err?.response?.data;
 
