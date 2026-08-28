@@ -8,9 +8,7 @@ import type {
   CreateBusinessInput,
   PublicBusinessQueryInput,
 } from "../types/business.js";
-import type {
-  PublicProductQueryInput,
-} from "../types/product.js";
+import type { PublicProductQueryInput } from "../types/product.js";
 
 export async function createBusiness(
   ownerId: string,
@@ -33,8 +31,13 @@ export async function createBusiness(
     description: input.description,
     email: input.email,
     phone: input.phone,
+    whatsappNumber: input.whatsappNumber,
     category: input.category,
     location: input.location,
+    operatingHours: input.operatingHours,
+    socialLinks: input.socialLinks,
+    logo: input.logo,
+    coverImage: input.coverImage,
     website: input.website,
   });
 
@@ -47,10 +50,7 @@ export async function getMyBusinesses(ownerId: string) {
   });
 }
 
-export async function getBusinessById(
-  businessId: string,
-  ownerId: string,
-) {
+export async function getBusinessById(businessId: string, ownerId: string) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -100,10 +100,7 @@ export async function updateBusiness(
     });
 
     if (existingBusiness) {
-      throw new AppError(
-        "A business with this name already exists",
-        409,
-      );
+      throw new AppError("A business with this name already exists", 409);
     }
 
     business.name = input.name;
@@ -122,6 +119,10 @@ export async function updateBusiness(
     business.phone = input.phone;
   }
 
+  if (input.whatsappNumber !== undefined) {
+    business.whatsappNumber = input.whatsappNumber;
+  }
+
   if (input.category !== undefined) {
     business.category = input.category;
   }
@@ -134,15 +135,31 @@ export async function updateBusiness(
     business.website = input.website;
   }
 
+  if (input.operatingHours !== undefined) {
+    business.operatingHours = {
+      ...business.operatingHours,
+      ...input.operatingHours,
+    } as typeof business.operatingHours;
+  }
+
+  if (input.socialLinks !== undefined) {
+    business.socialLinks = input.socialLinks;
+  }
+
+  if (input.logo !== undefined) {
+    business.logo = input.logo;
+  }
+
+  if (input.coverImage !== undefined) {
+    business.coverImage = input.coverImage;
+  }
+
   await business.save();
 
   return business;
 }
 
-export async function deleteBusiness(
-  businessId: string,
-  ownerId: string,
-) {
+export async function deleteBusiness(businessId: string, ownerId: string) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -164,16 +181,8 @@ export async function deleteBusiness(
   return true;
 }
 
-export async function getPublicBusinesses(
-  query: PublicBusinessQueryInput,
-) {
-  const {
-    page,
-    limit,
-    search,
-    category,
-    sort,
-  } = query;
+export async function getPublicBusinesses(query: PublicBusinessQueryInput) {
+  const { page, limit, search, category, sort } = query;
 
   const filter: Record<string, unknown> = {
     status: "active",
@@ -239,9 +248,7 @@ export async function getPublicBusinesses(
   };
 }
 
-export async function getPublicBusinessById(
-  businessId: string,
-) {
+export async function getPublicBusinessById(businessId: string) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -277,13 +284,7 @@ export async function getPublicBusinessProducts(
     throw new AppError("Business not found", 404);
   }
 
-  const {
-    page,
-    limit,
-    search,
-    categoryId,
-    sort,
-  } = query;
+  const { page, limit, search, categoryId, sort } = query;
 
   const filter: Record<string, unknown> = {
     businessId,
@@ -352,43 +353,34 @@ export async function getBusinessWhatsAppLink(
   const business = await Business.findOne({
     _id: businessId,
     status: "active",
-  }).select("name phone");
+  }).select("name phone whatsappNumber");
 
   if (!business) {
     throw new AppError("Business not found", 404);
   }
 
-  if (!business.phone) {
-    throw new AppError(
-      "This business does not have a phone number",
-      400,
-    );
+  const whatsappNumber = business.whatsappNumber || business.phone;
+
+  if (!whatsappNumber) {
+    throw new AppError("This business does not have a WhatsApp number", 400);
   }
 
-  const phone = business.phone.replace(/\D/g, "");
+  const phone = whatsappNumber.replace(/\D/g, "");
 
   if (!phone) {
-    throw new AppError(
-      "This business does not have a valid phone number",
-      400,
-    );
+    throw new AppError("This business does not have a valid phone number", 400);
   }
 
-  const whatsappUrl = new URL(
-    `https://wa.me/${phone}`,
-  );
+  const whatsappUrl = new URL(`https://wa.me/${phone}`);
 
   if (message?.trim()) {
-    whatsappUrl.searchParams.set(
-      "text",
-      message.trim(),
-    );
+    whatsappUrl.searchParams.set("text", message.trim());
   }
 
   return {
     businessId: business._id,
     businessName: business.name,
-    phone: business.phone,
+    phone: whatsappNumber,
     whatsappUrl: whatsappUrl.toString(),
   };
 }
