@@ -64,7 +64,7 @@ function CheckoutPage() {
   };
 
   return (
-    <main className="bg-gray-50 py-12">
+    <main className="py-12">
       <Container>
         <div className="mb-6">
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">

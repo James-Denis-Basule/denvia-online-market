@@ -59,7 +59,7 @@ function OrderDetailPage() {
 
   if (loading) {
     return (
-      <main className="bg-gray-50 py-12">
+      <main className="py-12">
         <Container>
           <p className="text-sm text-gray-500">Loading order...</p>
         </Container>
@@ -69,7 +69,7 @@ function OrderDetailPage() {
 
   if (!order) {
     return (
-      <main className="bg-gray-50 py-12">
+      <main className="py-12">
         <Container>
           <Card>
             <p className="text-gray-600">Order not found.</p>
@@ -87,7 +87,7 @@ function OrderDetailPage() {
   const itemTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
-    <main className="bg-gray-50 py-12">
+    <main className="py-12">
       <Container>
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>

@@ -41,7 +41,7 @@ function CartPage() {
   };
 
   return (
-    <main className="bg-gray-50 py-12">
+    <main className="py-12">
       <Container>
         <div className="mb-6 flex items-center justify-between">
           <div>

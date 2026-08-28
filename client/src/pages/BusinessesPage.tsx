@@ -77,7 +77,7 @@ function BusinessesPage() {
   }, [businesses, search]);
 
   return (
-    <main className="min-h-screen bg-gray-50 py-10">
+    <main className="min-h-screen py-10">
       <Container>
         <section className="rounded-2xl bg-white px-6 py-10 shadow-sm sm:px-10">
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
