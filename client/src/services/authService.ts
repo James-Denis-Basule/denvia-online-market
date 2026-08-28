@@ -71,17 +71,10 @@ export async function verifyEmail(token: string) {
   return response.data;
 }
 
-interface CurrentUserResponse {
-  success: boolean;
-  data: {
-    user: AuthUser;
-  };
-}
-
 export async function getCurrentUser() {
   const token = localStorage.getItem("accessToken");
 
-  const response = await api.get<CurrentUserResponse>("/auth/me", {
+  const response = await api.get("/auth/me", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
