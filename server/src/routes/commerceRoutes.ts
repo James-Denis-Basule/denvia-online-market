@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
   getCartController,
   addToCartController,
+  updateCartItemController,
+  removeCartItemController,
   createOrderController,
   getCheckoutQuoteController,
   getOrderByIdController,
@@ -20,6 +22,16 @@ const router = Router();
 
 router.get("/cart", authenticate, getCartController);
 router.post("/cart/items", authenticate, addToCartController);
+router.patch(
+  "/cart/items/:productId",
+  authenticate,
+  updateCartItemController,
+);
+router.delete(
+  "/cart/items/:productId",
+  authenticate,
+  removeCartItemController,
+);
 router.post("/checkout/quote", authenticate, getCheckoutQuoteController);
 router.get("/orders", authenticate, getOrdersController);
 router.get("/orders/seller", authenticate, getSellerOrdersController);

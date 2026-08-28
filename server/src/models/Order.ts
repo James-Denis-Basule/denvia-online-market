@@ -21,8 +21,16 @@ export interface IOrderItem {
   image?: string;
 }
 
+export interface IOrderCustomer {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}
+
 export interface IOrder extends Document {
-  userId: Types.ObjectId;
+  userId?: Types.ObjectId;
+  customer: IOrderCustomer;
   items: IOrderItem[];
   status: OrderStatus;
   subtotal: number;
@@ -86,8 +94,33 @@ const orderSchema = new Schema<IOrder>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
+    },
+    customer: {
+      firstName: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 50,
+      },
+      lastName: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 50,
+      },
+      email: {
+        type: String,
+        required: true,
+        lowercase: true,
+        trim: true,
+      },
+      phone: {
+        type: String,
+        required: true,
+        trim: true,
+      },
     },
     items: {
       type: [orderItemSchema],

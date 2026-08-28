@@ -5,6 +5,8 @@ import {
   calculateCartTotals,
   createOrderForUser,
   getCart,
+  updateCartItem,
+  removeCartItem,
   getCheckoutQuote,
   getOrderForCustomerOrAuthorizedSeller,
   getOrdersForUser,
@@ -85,6 +87,115 @@ export async function addToCartController(
     res.status(200).json({
       success: true,
       message: "Item added to cart",
+      data: {
+        cart,
+        totals,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateCartItemController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const productIdParam = req.params.productId;
+    const productId = typeof productIdParam === "string" ? productIdParam : undefined;
+    const quantity = Number(req.body?.quantity);
+
+    if (!productId) {
+      res.status(400).json({
+        success: false,
+        message: "productId is required",
+      });
+      return;
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      res.status(400).json({
+        success: false,
+        message: "quantity must be a positive integer",
+      });
+      return;
+    }
+
+    const cart = await updateCartItem(
+      req.user.userId,
+      productId,
+      quantity,
+    );
+
+    const totals = calculateCartTotals(
+      cart.items.map((item) => ({
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+      })),
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Cart item updated",
+      data: {
+        cart,
+        totals,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function removeCartItemController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const productId =
+      typeof req.params.productId === "string"
+        ? req.params.productId
+        : undefined;
+
+    if (!productId) {
+      res.status(400).json({
+        success: false,
+        message: "productId is required",
+      });
+      return;
+    }
+
+    const cart = await removeCartItem(req.user.userId, productId);
+
+    const totals = calculateCartTotals(
+      cart.items.map((item) => ({
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+      })),
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Item removed from cart",
       data: {
         cart,
         totals,

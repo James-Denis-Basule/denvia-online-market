@@ -194,6 +194,68 @@ export async function addToCart(userId: string, itemInput: CartItemInput) {
   return cart.toObject();
 }
 
+export async function updateCartItem(
+  userId: string,
+  productId: string,
+  quantity: number,
+) {
+  const normalizedQuantity = normalizeRequestedQuantity(quantity);
+
+  const cart = await Cart.findOne({ userId });
+  if (!cart) {
+    throw new AppError("Cart not found", 404);
+  }
+
+  const existingItem = cart.items.find(
+    (item) => String(item.productId) === productId,
+  );
+
+  if (!existingItem) {
+    throw new AppError("Cart item not found", 404);
+  }
+
+  const [authoritativeItem] = await resolveAuthoritativeCartItems([
+    {
+      productId,
+      businessId: String(existingItem.businessId),
+      quantity: normalizedQuantity,
+    },
+  ]);
+
+  existingItem.quantity = authoritativeItem.quantity;
+  existingItem.price = authoritativeItem.price;
+  existingItem.name = authoritativeItem.name;
+  existingItem.businessId = new mongoose.Types.ObjectId(
+    authoritativeItem.businessId,
+  );
+  existingItem.currency = authoritativeItem.currency;
+  existingItem.image = authoritativeItem.image;
+
+  await cart.save();
+  return cart.toObject();
+}
+
+export async function removeCartItem(userId: string, productId: string) {
+  const cart = await Cart.findOne({ userId });
+
+  if (!cart) {
+    throw new AppError("Cart not found", 404);
+  }
+
+  const originalLength = cart.items.length;
+
+  cart.items = cart.items.filter(
+    (item) => String(item.productId) !== productId,
+  ) as typeof cart.items;
+
+  if (cart.items.length === originalLength) {
+    throw new AppError("Cart item not found", 404);
+  }
+
+  await cart.save();
+  return cart.toObject();
+}
+
 export function normalizeShippingMethod(method?: string) {
   const normalized = (method ?? "standard").trim().toLowerCase();
 

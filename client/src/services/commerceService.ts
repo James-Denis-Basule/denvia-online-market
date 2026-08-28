@@ -145,6 +145,88 @@ export async function addToCart(item: CartItem) {
   }
 }
 
+export async function updateCartItem(
+  productId: string,
+  quantity: number,
+) {
+  const token = localStorage.getItem('accessToken');
+
+  if (!token) {
+    const item = demoCart.items.find(
+      (current) => current.productId === productId,
+    );
+
+    if (!item) {
+      throw new Error('Cart item not found');
+    }
+
+    item.quantity = Math.max(1, quantity);
+
+    demoCart.totals = {
+      subtotal: demoCart.items.reduce(
+        (sum, current) => sum + current.price * current.quantity,
+        0,
+      ),
+      total: demoCart.items.reduce(
+        (sum, current) => sum + current.price * current.quantity,
+        0,
+      ),
+      itemCount: demoCart.items.reduce(
+        (sum, current) => sum + current.quantity,
+        0,
+      ),
+    };
+
+    return {
+      cart: demoCart,
+      totals: demoCart.totals,
+    };
+  }
+
+  const response = await api.patch(
+    `/marketplace/cart/items/${productId}`,
+    { quantity },
+  );
+
+  return response.data.data;
+}
+
+export async function removeCartItem(productId: string) {
+  const token = localStorage.getItem('accessToken');
+
+  if (!token) {
+    demoCart.items = demoCart.items.filter(
+      (item) => item.productId !== productId,
+    );
+
+    demoCart.totals = {
+      subtotal: demoCart.items.reduce(
+        (sum, current) => sum + current.price * current.quantity,
+        0,
+      ),
+      total: demoCart.items.reduce(
+        (sum, current) => sum + current.price * current.quantity,
+        0,
+      ),
+      itemCount: demoCart.items.reduce(
+        (sum, current) => sum + current.quantity,
+        0,
+      ),
+    };
+
+    return {
+      cart: demoCart,
+      totals: demoCart.totals,
+    };
+  }
+
+  const response = await api.delete(
+    `/marketplace/cart/items/${productId}`,
+  );
+
+  return response.data.data;
+}
+
 export async function createOrder(payload: {
   items: CartItem[];
   paymentMethod: string;
