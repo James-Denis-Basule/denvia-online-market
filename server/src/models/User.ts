@@ -1,6 +1,12 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 
-export type UserRole = "user" | "business_owner" | "business_staff" | "admin";
+export type UserRole =
+  | "user"
+  | "business_owner"
+  | "business_staff"
+  | "admin";
+
+export type AccountType = "customer" | "business";
 
 export interface IUser extends Document {
   firstName: string;
@@ -8,6 +14,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   phone?: string;
+  accountTypes: AccountType[];
   role: UserRole;
   isActive: boolean;
   isEmailVerified: boolean;
@@ -57,6 +64,13 @@ const userSchema = new Schema<IUser>(
     phone: {
       type: String,
       trim: true,
+    },
+
+    accountTypes: {
+      type: [String],
+      enum: ["customer", "business"],
+      default: ["customer"],
+      required: true,
     },
 
     role: {

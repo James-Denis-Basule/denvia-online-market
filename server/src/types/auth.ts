@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const accountTypeSchema = z.enum(['customer', 'business']);
+
 export const registerSchema = z.object({
   firstName: z
     .string()
@@ -28,6 +30,8 @@ export const registerSchema = z.object({
     .string()
     .trim()
     .optional(),
+
+  accountType: accountTypeSchema.default('customer'),
 });
 
 export const loginSchema = z.object({
@@ -42,5 +46,8 @@ export const loginSchema = z.object({
     .min(1, 'Password is required'),
 });
 
+export type AccountType = z.infer<typeof accountTypeSchema>;
+
 export type RegisterInput = z.infer<typeof registerSchema>;
+
 export type LoginInput = z.infer<typeof loginSchema>;

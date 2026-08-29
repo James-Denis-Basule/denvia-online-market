@@ -151,6 +151,7 @@ export async function getCurrentUser(
           lastName: user.lastName,
           email: user.email,
           phone: user.phone,
+          accountTypes: user.accountTypes,
           role: user.role,
           isActive: user.isActive,
           isEmailVerified: user.isEmailVerified,

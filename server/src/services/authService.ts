@@ -46,6 +46,7 @@ export async function registerUser(input: RegisterInput) {
     email: input.email,
     password: hashedPassword,
     phone: input.phone,
+    accountTypes: [input.accountType],
     emailVerificationTokenHash,
     emailVerificationExpiresAt,
   });
@@ -70,6 +71,7 @@ export async function registerUser(input: RegisterInput) {
     lastName: user.lastName,
     email: user.email,
     phone: user.phone,
+    accountTypes: user.accountTypes,
     role: user.role,
     isEmailVerified: user.isEmailVerified,
   };
@@ -162,6 +164,7 @@ export async function loginUser(email: string, password: string) {
       lastName: user.lastName,
       email: user.email,
       phone: user.phone,
+      accountTypes: user.accountTypes,
       role: user.role,
       isEmailVerified: user.isEmailVerified,
     },
