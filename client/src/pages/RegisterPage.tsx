@@ -184,16 +184,27 @@ function RegisterPage() {
                 </p>
 
                 <h1 className="mt-3 text-5xl font-bold leading-tight tracking-tight text-gray-950">
-                  One account.
-                  <span className="block text-blue-600">
-                    A whole marketplace.
-                  </span>
+                  {accountType === "business" ? (
+                    <>
+                      Grow your business.
+                      <span className="block text-blue-600">
+                        Reach more customers.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Discover more.
+                      <span className="block text-blue-600">
+                        Shop with confidence.
+                      </span>
+                    </>
+                  )}
                 </h1>
 
                 <p className="mt-6 text-lg leading-8 text-gray-600">
-                  Create your DOM account and get access to businesses,
-                  products, services, orders, messaging, and your personal
-                  marketplace dashboard.
+                  {accountType === "business"
+                    ? "Create your business presence on Denvia Online Market, showcase your products and services, and connect with customers."
+                    : "Create your DOM account to discover businesses, products and services, manage orders, and connect with businesses."}
                 </p>
 
                 <div className="mt-9 space-y-3">
@@ -234,16 +245,49 @@ function RegisterPage() {
               <div className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-xl shadow-gray-200/60 backdrop-blur-md sm:p-8">
                 <div className="mb-7">
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-                    Get started
+                    {accountType === "business"
+                      ? "Business registration"
+                      : "Customer registration"}
                   </p>
 
                   <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-950">
-                    Create your account
+                    {accountType === "business"
+                      ? "Create your Business Account"
+                      : "Create your Customer Account"}
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-gray-500">
-                    It only takes a moment to get started with DOM.
+                    {accountType === "business"
+                      ? "Build your business presence, showcase products and services, and grow with DOM."
+                      : "Discover businesses, shop products and services, manage orders, and connect with businesses on DOM."}
                   </p>
+                </div>
+
+                <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+                        Account type
+                      </p>
+                      <p className="mt-1 font-semibold text-gray-900">
+                        {accountType === "business"
+                          ? "🏪 Business Account"
+                          : "👤 Customer Account"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-gray-500">
+                        {accountType === "business"
+                          ? "For businesses managing their presence on DOM."
+                          : "For customers discovering and using businesses on DOM."}
+                      </p>
+                    </div>
+
+                    <Link
+                      to={`/register?type=${accountType === "business" ? "customer" : "business"}`}
+                      className="shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      Switch
+                    </Link>
+                  </div>
                 </div>
 
                 {error && (
