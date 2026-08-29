@@ -51,7 +51,7 @@ function MainLayout() {
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
-      'group relative rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200',
+      'group relative rounded-2xl px-3 py-2 text-sm font-semibold transition-all duration-200',
       isActive
         ? 'bg-blue-50 text-blue-700'
         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-950',
@@ -59,30 +59,26 @@ function MainLayout() {
 
   const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
-      'whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-semibold transition-all duration-200',
+      'whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all duration-200',
       isActive
         ? 'bg-blue-600 text-white shadow-sm'
         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
     ].join(' ');
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Main navigation */}
-      <header className="sticky top-0 z-50 border-b border-gray-200/70 bg-white/75 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex min-h-[4.5rem] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          {/* Brand */}
+    <div className="flex min-h-screen flex-col bg-transparent">
+      <header className="sticky top-0 z-50 border-b border-gray-200/70 bg-white/80 shadow-sm backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link
             to={isAuthenticated ? '/dashboard' : '/'}
             className="group flex min-w-0 shrink-0 items-center gap-3"
           >
-            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-lg font-black text-white shadow-md shadow-blue-200 transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-blue-200">
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-md shadow-blue-200 transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-blue-200">
               <img
                 src={LOGO_URL}
                 alt="Denvia Online Market"
                 className="relative z-10 h-full w-full object-contain"
               />
-              <span className="absolute -right-3 -top-3 h-8 w-8 rounded-full bg-white/15" />
-              <span className="absolute -bottom-4 -left-2 h-7 w-7 rounded-full bg-white/10" />
             </span>
 
             <span className="hidden min-w-0 sm:block">
@@ -92,12 +88,13 @@ function MainLayout() {
               </span>
 
               <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
-                {isDashboard ? 'Business Center' : 'Discover • Connect • Grow'}
+                {isDashboard
+                  ? 'Business Center'
+                  : 'Discover • Connect • Grow'}
               </span>
             </span>
           </Link>
 
-          {/* Desktop navigation */}
           <nav className="hidden items-center gap-1 md:flex">
             {navigation.map((item) => (
               <NavLink
@@ -128,15 +125,14 @@ function MainLayout() {
 
                 <Link
                   to="/register"
-                  className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200/60 transition duration-200 hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-blue-200/70"
+                  className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200/70"
                 >
                   Get Started
                 </Link>
               </div>
             ) : (
               <div className="ml-3 flex items-center gap-2 border-l border-gray-200 pl-3">
-                {/* User account */}
-                <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/80 px-2.5 py-1.5">
+                <div className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50/80 px-2.5 py-1.5">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-sm">
                     {userInitial}
                   </span>
@@ -145,17 +141,17 @@ function MainLayout() {
                     <p className="truncate text-xs font-bold text-gray-900">
                       {userName || 'Account'}
                     </p>
+
                     <p className="text-[10px] font-medium text-gray-500">
                       Business account
                     </p>
                   </div>
                 </div>
 
-                {/* Logout */}
                 <button
                   type="button"
                   onClick={() => void handleLogout()}
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-gray-500 transition duration-200 hover:bg-red-50 hover:text-red-600"
+                  className="rounded-2xl px-3 py-2 text-sm font-semibold text-gray-500 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
                 >
                   Logout
                 </button>
@@ -163,7 +159,6 @@ function MainLayout() {
             )}
           </nav>
 
-          {/* Mobile top actions */}
           <div className="flex items-center gap-2 md:hidden">
             {isAuthenticated ? (
               <>
@@ -174,10 +169,10 @@ function MainLayout() {
                 <Link
                   to="/dashboard"
                   className={[
-                    'rounded-xl px-3 py-2 text-xs font-bold transition',
+                    'rounded-2xl px-3 py-2 text-xs font-bold transition-all',
                     isDashboard
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-blue-50 text-blue-700',
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
                   ].join(' ')}
                 >
                   Dashboard
@@ -186,7 +181,7 @@ function MainLayout() {
             ) : (
               <Link
                 to="/login"
-                className="rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700"
+                className="rounded-2xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-700"
               >
                 Login
               </Link>
@@ -194,7 +189,6 @@ function MainLayout() {
           </div>
         </div>
 
-        {/* Mobile navigation */}
         <div className="border-t border-gray-200/60 bg-white/70 backdrop-blur-xl md:hidden">
           <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-6 lg:px-8">
             {navigation.map((item) => (
@@ -211,7 +205,7 @@ function MainLayout() {
             {!isAuthenticated ? (
               <Link
                 to="/register"
-                className="whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+                className="whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
               >
                 Get Started
               </Link>
@@ -219,7 +213,7 @@ function MainLayout() {
               <button
                 type="button"
                 onClick={() => void handleLogout()}
-                className="whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50"
+                className="whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50"
               >
                 Logout
               </button>
@@ -228,7 +222,6 @@ function MainLayout() {
         </div>
       </header>
 
-      {/* Dashboard context bar */}
       {isDashboard && isAuthenticated && (
         <div className="border-b border-blue-100/80 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
@@ -254,12 +247,10 @@ function MainLayout() {
         </div>
       )}
 
-      {/* Page content */}
       <main className="flex-1">
         <Outlet />
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-200/80 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-6 text-center sm:flex-row sm:px-6 lg:px-8">
           <span className="text-sm font-medium text-gray-500">

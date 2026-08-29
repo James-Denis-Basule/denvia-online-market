@@ -1,47 +1,47 @@
-import { useState } from "react";
+import { useState } from 'react';
 
-import type { FormEvent } from "react";
+import type { FormEvent } from 'react';
 
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
-import Container from "../components/layout/Container";
+import Container from '../components/layout/Container';
 
-import { useAuth } from "../hooks/useAuth";
-import type { AccountType } from "../services/authService";
+import { useAuth } from '../hooks/useAuth';
+import type { AccountType } from '../services/authService';
 
 const LOGO_URL =
-  "https://res.cloudinary.com/dy3a8sgs7/image/upload/v1787605738/ChatGPT_Image_Aug_22_2026_at_01_25_02_AM_kbz3h0.png";
+  'https://res.cloudinary.com/dy3a8sgs7/image/upload/v1787605738/ChatGPT_Image_Aug_22_2026_at_01_25_02_AM_kbz3h0.png';
 
 function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { register } = useAuth();
 
-  const requestedAccountType = searchParams.get("type");
+  const requestedAccountType = searchParams.get('type');
 
   const accountType: AccountType =
-    requestedAccountType === "business" ? "business" : "customer";
+    requestedAccountType === 'business' ? 'business' : 'customer';
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError('Passwords do not match.');
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
+      setError('');
 
       await register({
         firstName,
@@ -53,31 +53,23 @@ function RegisterPage() {
       });
 
       navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
-    } catch (err: unknown) {
-      const error = err as {
-        response?: {
-          data?: {
-            message?: string;
-            errors?: Record<string, unknown>;
-          };
-        };
-      };
-      const response = error.response?.data;
+    } catch (err: any) {
+      const response = err?.response?.data;
 
       if (response?.errors) {
         const firstError = Object.values(response.errors)
           .flat()
-          .find((value) => typeof value === "string");
+          .find((value) => typeof value === 'string');
 
         setError(
-          typeof firstError === "string"
+          typeof firstError === 'string'
             ? firstError
-            : response.message || "Unable to create your account.",
+            : response.message || 'Unable to create your account.',
         );
       } else {
         setError(
           response?.message ||
-            "Unable to create your account. Please try again.",
+            'Unable to create your account. Please try again.',
         );
       }
     } finally {
@@ -93,18 +85,18 @@ function RegisterPage() {
 
         <div
           className="absolute right-[-8rem] top-20 h-96 w-96 animate-pulse rounded-full bg-indigo-300/20 blur-3xl"
-          style={{ animationDelay: "1.5s" }}
+          style={{ animationDelay: '1.5s' }}
         />
 
         <div
           className="absolute bottom-[-10rem] left-1/3 h-96 w-96 animate-pulse rounded-full bg-cyan-300/15 blur-3xl"
-          style={{ animationDelay: "3s" }}
+          style={{ animationDelay: '3s' }}
         />
 
         <div
           className="absolute bottom-20 right-1/4 h-48 w-48 animate-bounce rounded-full bg-blue-200/10 blur-3xl"
           style={{
-            animationDuration: "8s",
+            animationDuration: '8s',
           }}
         />
 
@@ -147,22 +139,22 @@ function RegisterPage() {
 
         <div
           className="dom-float absolute left-[42%] top-[12%] h-2 w-2 rounded-full bg-indigo-400/30"
-          style={{ animationDelay: "1s" }}
+          style={{ animationDelay: '1s' }}
         />
 
         <div
           className="dom-float absolute right-[12%] top-[42%] h-4 w-4 rounded-full bg-cyan-400/20"
-          style={{ animationDelay: "2s" }}
+          style={{ animationDelay: '2s' }}
         />
 
         <div
           className="dom-drift absolute bottom-[15%] left-[15%] h-5 w-5 rounded-full border border-blue-300/20"
-          style={{ animationDelay: "1.5s" }}
+          style={{ animationDelay: '1.5s' }}
         />
 
         <div
           className="dom-drift absolute bottom-[25%] right-[8%] h-8 w-8 rounded-full border border-indigo-300/20"
-          style={{ animationDelay: "3s" }}
+          style={{ animationDelay: '3s' }}
         />
       </div>
 
@@ -198,9 +190,9 @@ function RegisterPage() {
 
                 <div className="mt-9 space-y-3">
                   {[
-                    "Discover businesses and products",
-                    "Manage your orders in one place",
-                    "Connect with businesses through DOM",
+                    'Discover businesses and products',
+                    'Manage your orders in one place',
+                    'Connect with businesses through DOM',
                   ].map((item, index) => (
                     <div
                       key={item}
@@ -396,13 +388,13 @@ function RegisterPage() {
                     <p
                       className={`text-sm ${
                         password === confirmPassword
-                          ? "text-green-600"
-                          : "text-red-600"
+                          ? 'text-green-600'
+                          : 'text-red-600'
                       }`}
                     >
                       {password === confirmPassword
-                        ? "✓ Passwords match"
-                        : "Passwords do not match"}
+                        ? '✓ Passwords match'
+                        : 'Passwords do not match'}
                     </p>
                   )}
 
@@ -411,13 +403,13 @@ function RegisterPage() {
                     disabled={loading}
                     className="w-full rounded-2xl bg-blue-600 px-4 py-3.5 font-semibold text-white shadow-lg shadow-blue-200 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                   >
-                    {loading ? "Creating your account..." : "Create account"}
+                    {loading ? 'Creating your account...' : 'Create account'}
                   </button>
                 </form>
 
                 <div className="mt-7 border-t border-gray-100 pt-6 text-center">
                   <p className="text-sm text-gray-600">
-                    Already have an account?{" "}
+                    Already have an account?{' '}
                     <Link
                       to="/login"
                       className="font-semibold text-blue-600 transition hover:text-blue-700"

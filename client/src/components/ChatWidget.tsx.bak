@@ -67,18 +67,13 @@ function ChatWidget() {
   };
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => {
-      void load();
-    }, 0);
+    void load();
 
     const id = setInterval(() => {
       void load();
     }, 5000);
 
-    return () => {
-      window.clearTimeout(initialLoad);
-      clearInterval(id);
-    };
+    return () => clearInterval(id);
   }, []);
 
   const handleSend = async (question?: string) => {

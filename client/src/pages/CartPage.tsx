@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import LoadingState from '../components/ui/LoadingState';
 import Container from '../components/layout/Container';
 import {
   getCart,
@@ -72,9 +73,7 @@ function CartPage() {
     return (
       <main className="min-h-[70vh] bg-gray-50 py-8 sm:py-10">
         <Container>
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
-            Loading your cart...
-          </div>
+          <LoadingState />
         </Container>
       </main>
     );

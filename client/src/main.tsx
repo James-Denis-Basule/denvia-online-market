@@ -8,11 +8,14 @@ import './styles/global.css';
 import App from './App';
 
 import { AuthProvider } from './context/AuthContext';
+import { BusinessProvider } from './context/BusinessContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <App />
+      <BusinessProvider>
+        <App />
+      </BusinessProvider>
     </AuthProvider>
   </StrictMode>,
 );

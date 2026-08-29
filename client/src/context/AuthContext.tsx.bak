@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useCallback,
@@ -109,10 +108,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      void refreshUser();
-    }, 0);
-    return () => window.clearTimeout(id);
+    void refreshUser();
   }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {

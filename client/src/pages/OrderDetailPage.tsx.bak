@@ -5,7 +5,6 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Container from '../components/layout/Container';
 import api from '../services/api';
-import axios from 'axios';
 import { getOrder, type Order } from '../services/commerceService';
 import { getDelivery, updateDeliveryStatus, type DeliveryRecord } from '../services/deliveryService';
 
@@ -22,7 +21,7 @@ const statusStyles: Record<string, string> = {
 function OrderDetailPage() {
   const { orderId } = useParams();
   const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(Boolean(orderId));
+  const [loading, setLoading] = useState(true);
   const [courier, setCourier] = useState<string>('local_dispatch');
   const [trackingCode, setTrackingCode] = useState<string>('');
   const [assignLoading, setAssignLoading] = useState(false);
@@ -36,6 +35,7 @@ function OrderDetailPage() {
 
   useEffect(() => {
     if (!orderId) {
+      setLoading(false);
       return;
     }
 
@@ -47,8 +47,8 @@ function OrderDetailPage() {
       try {
         const d = await getDelivery(orderId);
         setDelivery(d);
-      } catch {
-        // Delivery information is optional.
+      } catch (err) {
+        // ignore
       }
 
       setLoading(false);
@@ -224,12 +224,9 @@ function OrderDetailPage() {
                           setAssignSuccess('Delivery assigned');
                           setAssignLoading(false);
                         }
-                      } catch (err: unknown) {
+                      } catch (err: any) {
                         console.error(err);
-                        const message = axios.isAxiosError(err)
-                          ? err.response?.data?.message
-                          : undefined;
-                        setAssignError(message ?? 'Failed to assign delivery');
+                        setAssignError(err?.response?.data?.message ?? 'Failed to assign delivery');
                         setAssignLoading(false);
                       }
                     }}
@@ -305,12 +302,9 @@ function OrderDetailPage() {
                                   setDeliveryActionSuccess('Marked in transit');
                                   setDeliveryActionLoading(false);
                                 }
-                              } catch (err: unknown) {
+                              } catch (err: any) {
                                 console.error(err);
-                                const message = axios.isAxiosError(err)
-                                  ? err.response?.data?.message
-                                  : undefined;
-                                setDeliveryActionError(message ?? 'Failed to update delivery');
+                                setDeliveryActionError(err?.response?.data?.message ?? 'Failed to update delivery');
                                 setDeliveryActionLoading(false);
                               }
                             }}
@@ -353,12 +347,9 @@ function OrderDetailPage() {
                                   setDeliveryActionSuccess('Marked delivered');
                                   setDeliveryActionLoading(false);
                                 }
-                              } catch (err: unknown) {
+                              } catch (err: any) {
                                 console.error(err);
-                                const message = axios.isAxiosError(err)
-                                  ? err.response?.data?.message
-                                  : undefined;
-                                setDeliveryActionError(message ?? 'Failed to update delivery');
+                                setDeliveryActionError(err?.response?.data?.message ?? 'Failed to update delivery');
                                 setDeliveryActionLoading(false);
                               }
                             }}

@@ -6,12 +6,15 @@ export interface ActiveBusiness {
   logo?: string;
 }
 
+export type AccountType = 'customer' | 'business';
+
 export interface AuthUser {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
+  accountTypes: AccountType[];
   role: string;
   isEmailVerified: boolean;
   isActive?: boolean;
@@ -57,6 +60,7 @@ export async function registerUser(payload: {
   email: string;
   password: string;
   phone?: string;
+  accountType?: AccountType;
 }) {
   const response = await api.post<RegisterResponse>("/auth/register", payload);
 

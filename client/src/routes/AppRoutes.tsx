@@ -6,6 +6,7 @@ import BusinessesPage from '../pages/BusinessesPage';
 import ProductsPage from '../pages/ProductsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
+import AccountTypesPage from '../pages/AccountTypesPage';
 import VerifyEmailPage from '../pages/VerifyEmailPage';
 import DashboardPage from '../pages/DashboardPage';
 import ChatPage from '../pages/ChatPage';
@@ -25,6 +26,7 @@ function AppRoutes() {
           <Route path="/businesses" element={<BusinessesPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/account-types" element={<AccountTypesPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
 

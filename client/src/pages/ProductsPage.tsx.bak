@@ -96,6 +96,10 @@ function ProductsPage() {
     };
   }, [page, search, sort, retryKey]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, sort]);
+
   const pageNumbers = useMemo(() => {
     const numbers: number[] = [];
     const start = Math.max(1, page - 2);
@@ -207,10 +211,7 @@ function ProductsPage() {
                       id="product-search"
                       type="search"
                       value={search}
-                      onChange={(event) => {
-                      setSearch(event.target.value);
-                      setPage(1);
-                    }}
+                      onChange={(event) => setSearch(event.target.value)}
                       placeholder="Search products, categories..."
                       className="min-w-0 flex-1 bg-transparent px-3 py-3 text-gray-900 outline-none placeholder:text-gray-400"
                     />
