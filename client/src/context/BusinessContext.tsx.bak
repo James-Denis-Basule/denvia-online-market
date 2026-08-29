@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useCallback,
@@ -5,15 +6,15 @@ import {
   useEffect,
   useMemo,
   useState,
-} from 'react';
-import type { ReactNode } from 'react';
+} from "react";
+import type { ReactNode } from "react";
 
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from "../hooks/useAuth";
 import {
   getMyBusinesses,
   selectBusiness,
   type Business,
-} from '../services/businessService';
+} from "../services/businessService";
 
 interface BusinessContextValue {
   businesses: Business[];
@@ -28,7 +29,7 @@ const BusinessContext = createContext<BusinessContextValue | undefined>(
   undefined,
 );
 
-const ACTIVE_BUSINESS_STORAGE_KEY = 'activeBusinessId';
+const ACTIVE_BUSINESS_STORAGE_KEY = "activeBusinessId";
 
 interface BusinessProviderProps {
   children: ReactNode;
@@ -71,22 +72,24 @@ export function BusinessProvider({ children }: BusinessProviderProps) {
           ? availableBusinesses.find((business) => business._id === storedId)
           : null) ?? null;
 
-      const userBusiness =
-        user?.activeBusiness?.id
-          ? availableBusinesses.find(
-              (business) => business._id === user.activeBusiness?.id,
-            )
-          : null;
+      const userBusiness = user?.activeBusiness?.id
+        ? availableBusinesses.find(
+            (business) => business._id === user.activeBusiness?.id,
+          )
+        : null;
 
       const resolved =
-        selectedFromServer ?? storedBusiness ?? userBusiness ?? availableBusinesses[0];
+        selectedFromServer ??
+        storedBusiness ??
+        userBusiness ??
+        availableBusinesses[0];
 
       setActiveBusiness(resolved);
       persistBusinessId(resolved._id);
 
       return resolved;
     },
-    [user?.activeBusiness?.id],
+    [user],
   );
 
   const refreshBusinesses = useCallback(async () => {
@@ -120,31 +123,67 @@ export function BusinessProvider({ children }: BusinessProviderProps) {
   }, [isAuthenticated, resolveActiveBusiness]);
 
   useEffect(() => {
-    void refreshBusinesses();
+    const id = window.setTimeout(() => {
+      void refreshBusinesses();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [refreshBusinesses]);
 
   const selectActiveBusiness = useCallback(
     async (businessId: string) => {
-      if (!businessId || businessId === activeBusiness?._id) {
-        return activeBusiness;
+      if (!businessId) {
+        throw new Error("A business must be selected.");
       }
 
       const targetBusiness = businesses.find(
         (business) => business._id === businessId,
       );
 
-      if (!targetBusiness) {
-        throw new Error('The selected business is not available.');
+      /*
+       * If the business is already active, there is nothing to do.
+       */
+      if (businessId === activeBusiness?._id) {
+        return activeBusiness;
+      }
+
+      /*
+       * The business list can be temporarily stale immediately after
+       * creating a business. Refresh it before declaring the business
+       * unavailable.
+       */
+      let businessToSelect = targetBusiness;
+
+      if (!businessToSelect) {
+        try {
+          const response = await getMyBusinesses();
+
+          const refreshedBusinesses = Array.isArray(response.data?.businesses)
+            ? response.data.businesses
+            : [];
+
+          setBusinesses(refreshedBusinesses);
+
+          businessToSelect = refreshedBusinesses.find(
+            (business) => business._id === businessId,
+          );
+        } catch {
+          throw new Error("Unable to load your businesses. Please try again.");
+        }
+      }
+
+      if (!businessToSelect) {
+        throw new Error("The selected business is not available.");
       }
 
       const previousBusiness = activeBusiness;
 
-      setActiveBusiness(targetBusiness);
-      persistBusinessId(targetBusiness._id);
+      setActiveBusiness(businessToSelect);
+      persistBusinessId(businessToSelect._id);
 
       try {
         const response = await selectBusiness(businessId);
-        const selectedBusiness = response.data?.business ?? targetBusiness;
+
+        const selectedBusiness = response.data?.business ?? businessToSelect;
 
         setActiveBusiness(selectedBusiness);
         persistBusinessId(selectedBusiness._id);
@@ -152,6 +191,7 @@ export function BusinessProvider({ children }: BusinessProviderProps) {
         await refreshUser();
 
         const refreshedBusinesses = await getMyBusinesses();
+
         const availableBusinesses = Array.isArray(
           refreshedBusinesses.data?.businesses,
         )
@@ -209,7 +249,7 @@ export function useBusiness() {
   const context = useContext(BusinessContext);
 
   if (!context) {
-    throw new Error('useBusiness must be used within a BusinessProvider.');
+    throw new Error("useBusiness must be used within a BusinessProvider.");
   }
 
   return context;
