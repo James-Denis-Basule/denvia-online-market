@@ -25,7 +25,7 @@ export async function createBusiness(
     throw new AppError("A business with this name already exists", 409);
   }
 
-    const business = await Business.create({
+  const business = await Business.create({
     ownerId,
     slug,
     name: input.name,
@@ -63,10 +63,7 @@ export async function getMyBusinesses(ownerId: string) {
   });
 }
 
-export async function selectBusiness(
-  businessId: string,
-  ownerId: string,
-) {
+export async function selectBusiness(businessId: string, ownerId: string) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -221,7 +218,34 @@ export async function deleteBusiness(businessId: string, ownerId: string) {
     );
   }
 
+  const user = await User.findById(ownerId).select("+activeBusinessId");
+
+  if (!user) {
+    throw new AppError("User account not found", 404);
+  }
+
+  const wasActiveBusiness = user.activeBusinessId?.toString() === businessId;
+
   await Business.findByIdAndDelete(businessId);
+
+  if (wasActiveBusiness) {
+    const replacementBusiness = await Business.findOne({
+      ownerId,
+      _id: { $ne: businessId },
+    }).sort({
+      createdAt: -1,
+    });
+
+    if (replacementBusiness) {
+      user.activeBusinessId = replacementBusiness._id;
+      await user.save();
+    } else {
+      await User.updateOne(
+        { _id: ownerId },
+        { $unset: { activeBusinessId: 1 } },
+      );
+    }
+  }
 
   return true;
 }
