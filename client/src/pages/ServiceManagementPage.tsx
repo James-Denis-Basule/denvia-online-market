@@ -142,36 +142,6 @@ function ServiceManagementPage() {
     setShowForm(false);
   }
 
-  function beginEdit(service: Service) {
-    setEditingService(service);
-
-    setForm({
-      name: service.name,
-      description: service.description ?? "",
-      category: service.category ?? "",
-      price:
-        service.price === undefined || service.price === null
-          ? ""
-          : String(service.price),
-      currency: service.currency || "UGX",
-      pricingType: service.pricingType,
-      duration:
-        service.duration === undefined || service.duration === null
-          ? ""
-          : String(service.duration),
-      status: service.status,
-      isVisible: service.isVisible,
-    });
-
-    setError("");
-    setSuccess("");
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -869,7 +839,9 @@ function ServiceManagementPage() {
                           ) : (
                             <button
                               type="button"
-                              onClick={() => beginEdit(service)}
+                              onClick={() =>
+                                navigate(`/services/edit/${service._id}`)
+                              }
                               className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                             >
                               Edit
