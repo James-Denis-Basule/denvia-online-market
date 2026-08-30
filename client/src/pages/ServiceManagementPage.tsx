@@ -85,8 +85,7 @@ function ServiceManagementPage() {
 
   const [services, setServices] = useState<Service[]>([]);
   const [deletedServices, setDeletedServices] = useState<Service[]>([]);
-  const [serviceFilter, setServiceFilter] =
-    useState<ServiceFilter>("all");
+  const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("all");
   const [form, setForm] = useState<ServiceForm>(emptyForm);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
@@ -246,7 +245,9 @@ function ServiceManagementPage() {
         resetForm();
       }
 
-      setSuccess("Service moved to the Bin. It will be permanently deleted after 30 days.");
+      setSuccess(
+        "Service moved to the Bin. It will be permanently deleted after 30 days.",
+      );
       await loadServices();
     } catch (requestError: any) {
       setError(
@@ -315,19 +316,46 @@ function ServiceManagementPage() {
 
   const filterCounts = {
     all: services.length,
-    activated: services.filter(
-      (service) => service.status === "active",
-    ).length,
-    archived: services.filter(
-      (service) => service.status === "archived",
-    ).length,
-    visible: services.filter(
-      (service) => service.isVisible,
-    ).length,
-    hidden: services.filter(
-      (service) => !service.isVisible,
-    ).length,
+    activated: services.filter((service) => service.status === "active").length,
+    archived: services.filter((service) => service.status === "archived")
+      .length,
+    visible: services.filter((service) => service.isVisible).length,
+    hidden: services.filter((service) => !service.isVisible).length,
     deleted: deletedServices.length,
+  };
+
+  const emptyState = {
+    all: {
+      title: "No services yet",
+      message:
+        "This business has not added any services yet. Add services to showcase what your business offers.",
+      action: true,
+    },
+    activated: {
+      title: "No activated services",
+      message: "There are no activated services for this business right now.",
+      action: false,
+    },
+    archived: {
+      title: "No archived services",
+      message: "There are no archived services for this business right now.",
+      action: false,
+    },
+    visible: {
+      title: "No visible services",
+      message: "There are no visible services for customers to see right now.",
+      action: false,
+    },
+    hidden: {
+      title: "No hidden services",
+      message: "There are no hidden services for this business right now.",
+      action: false,
+    },
+    deleted: {
+      title: "No deleted services",
+      message: "There are no deleted services in the Bin right now.",
+      action: false,
+    },
   };
 
   return (
@@ -675,14 +703,16 @@ function ServiceManagementPage() {
 
               <div className="mb-5 overflow-x-auto rounded-2xl border border-gray-100 bg-white p-2 shadow-sm">
                 <div className="flex min-w-max gap-2">
-                  {([
-                    ["all", "All"],
-                    ["activated", "Activated"],
-                    ["archived", "Archived"],
-                    ["visible", "Visible"],
-                    ["hidden", "Hidden"],
-                    ["deleted", "Bin"],
-                  ] as const).map(([value, label]) => (
+                  {(
+                    [
+                      ["all", "All"],
+                      ["activated", "Activated"],
+                      ["archived", "Archived"],
+                      ["visible", "Visible"],
+                      ["hidden", "Hidden"],
+                      ["deleted", "Bin"],
+                    ] as const
+                  ).map(([value, label]) => (
                     <button
                       key={value}
                       type="button"
@@ -706,7 +736,7 @@ function ServiceManagementPage() {
 
               {loading ? (
                 <LoadingState count={3} className="lg:grid-cols-3" />
-              ) : services.length === 0 ? (
+              ) : filteredServices.length === 0 ? (
                 <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                   <div className="px-6 py-12 text-center sm:px-10">
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-3xl font-bold text-blue-600">
@@ -714,24 +744,25 @@ function ServiceManagementPage() {
                     </div>
 
                     <h3 className="mt-5 text-xl font-bold text-gray-900">
-                      No services yet
+                      {emptyState[serviceFilter].title}
                     </h3>
 
                     <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-                      This business has not added any services yet. Add services
-                      to showcase what your business offers to customers.
+                      {emptyState[serviceFilter].message}
                     </p>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        resetForm();
-                        setShowForm(true);
-                      }}
-                      className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-                    >
-                      + Add your first service
-                    </button>
+                    {emptyState[serviceFilter].action && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetForm();
+                          setShowForm(true);
+                        }}
+                        className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                      >
+                        + Add your first service
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -817,7 +848,9 @@ function ServiceManagementPage() {
 
                                   try {
                                     await restoreService(service._id);
-                                    setSuccess("Service restored successfully.");
+                                    setSuccess(
+                                      "Service restored successfully.",
+                                    );
                                     await loadServices();
                                   } catch (requestError: any) {
                                     setError(
@@ -834,13 +867,13 @@ function ServiceManagementPage() {
                               Restore
                             </button>
                           ) : (
-                          <button
-                            type="button"
-                            onClick={() => beginEdit(service)}
-                            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                          >
-                            Edit
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => beginEdit(service)}
+                              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                            >
+                              Edit
+                            </button>
                           )}
 
                           {serviceFilter !== "deleted" && (
@@ -859,7 +892,9 @@ function ServiceManagementPage() {
                               <button
                                 type="button"
                                 disabled={isWorking}
-                                onClick={() => void handleToggleVisibility(service)}
+                                onClick={() =>
+                                  void handleToggleVisibility(service)
+                                }
                                 className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                               >
                                 {service.isVisible ? "Hide" : "Show"}
