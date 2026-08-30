@@ -41,108 +41,118 @@ export type Order = {
   createdAt?: string;
 };
 
-const demoCart: { items: CartItem[]; totals: CartTotals } = {
-  items: [
-    {
-      productId: '67d8d1f5d39b5b8f5f41de7b',
-      businessId: '67d8d1f5d39b5b8f5f41de7c',
-      name: 'Laptop',
-      price: 200000,
-      quantity: 1,
-      currency: 'UGX',
-    },
-    {
-      productId: '67d8d1f5d39b5b8f5f41de7d',
-      businessId: '67d8d1f5d39b5b8f5f41de7c',
-      name: 'Smartphone',
-      price: 850000,
-      quantity: 1,
-      currency: 'UGX',
-    },
-  ],
-  totals: {
-    subtotal: 1050000,
-    total: 1050000,
-    itemCount: 2,
-  },
-};
+const GUEST_CART_KEY = 'dom_guest_cart';
 
-const demoOrders: Order[] = [
-  {
-    _id: '1',
-    status: 'pending',
-    items: demoCart.items,
-    subtotal: 1050000,
-    deliveryFee: 5000,
-    paymentFee: 0,
-    total: 1055000,
-    currency: 'UGX',
-    shippingMethod: 'standard',
-    paymentMethod: 'cash_on_delivery',
-    deliveryAddress: 'Kampala, Uganda',
-  },
-  {
-    _id: '2',
-    status: 'shipped',
-    items: [demoCart.items[0]],
-    subtotal: 200000,
-    deliveryFee: 15000,
-    paymentFee: 1200,
-    total: 216200,
-    currency: 'UGX',
-    shippingMethod: 'express',
-    paymentMethod: 'card',
-    deliveryAddress: 'Entebbe, Uganda',
-  },
-];
+function calculateCartTotals(items: CartItem[]): CartTotals {
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+
+  return {
+    subtotal,
+    total: subtotal,
+    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+  };
+}
+
+function createCart(items: CartItem[]): {
+  items: CartItem[];
+  totals: CartTotals;
+} {
+  return {
+    items,
+    totals: calculateCartTotals(items),
+  };
+}
+
+function getGuestCart(): { items: CartItem[]; totals: CartTotals } {
+  if (typeof window === 'undefined') {
+    return createCart([]);
+  }
+
+  const stored = localStorage.getItem(GUEST_CART_KEY);
+
+  if (!stored) {
+    return createCart([]);
+  }
+
+  try {
+    const parsed = JSON.parse(stored) as {
+      items?: CartItem[];
+    };
+
+    return createCart(Array.isArray(parsed.items) ? parsed.items : []);
+  } catch {
+    localStorage.removeItem(GUEST_CART_KEY);
+    return createCart([]);
+  }
+}
+
+function saveGuestCart(items: CartItem[]) {
+  if (typeof window === 'undefined') return;
+
+  localStorage.setItem(
+    GUEST_CART_KEY,
+    JSON.stringify(createCart(items)),
+  );
+}
+
+function clearGuestCart() {
+  if (typeof window === 'undefined') return;
+
+  localStorage.removeItem(GUEST_CART_KEY);
+}
+
+
 
 export async function getCart() {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    return demoCart;
+    return getGuestCart();
   }
 
-  try {
-    const response = await api.get('/marketplace/cart');
-    return response.data.data;
-  } catch {
-    return demoCart;
-  }
+  const response = await api.get('/marketplace/cart');
+  return response.data.data;
 }
 
 export async function addToCart(item: CartItem) {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    demoCart.items = [...demoCart.items, item];
-    demoCart.totals = {
-      subtotal: demoCart.items.reduce((sum, current) => sum + current.price * current.quantity, 0),
-      total: demoCart.items.reduce((sum, current) => sum + current.price * current.quantity, 0),
-      itemCount: demoCart.items.reduce((sum, current) => sum + current.quantity, 0),
-    };
+    const cart = getGuestCart();
+    const existing = cart.items.find(
+      (current) => current.productId === item.productId,
+    );
 
-    return { item, totals: demoCart.totals };
+    const items = existing
+      ? cart.items.map((current) =>
+          current.productId === item.productId
+            ? {
+                ...current,
+                quantity: current.quantity + item.quantity,
+              }
+            : current,
+        )
+      : [...cart.items, item];
+
+    saveGuestCart(items);
+
+    return {
+      item,
+      cart: createCart(items),
+      totals: calculateCartTotals(items),
+    };
   }
 
-  try {
-    const response = await api.post('/marketplace/cart/items', {
-      productId: item.productId,
-      businessId: item.businessId,
-      quantity: item.quantity,
-    });
+  const response = await api.post('/marketplace/cart/items', {
+    productId: item.productId,
+    businessId: item.businessId,
+    quantity: item.quantity,
+  });
 
-    return response.data.data;
-  } catch {
-    demoCart.items = [...demoCart.items, item];
-    demoCart.totals = {
-      subtotal: demoCart.items.reduce((sum, current) => sum + current.price * current.quantity, 0),
-      total: demoCart.items.reduce((sum, current) => sum + current.price * current.quantity, 0),
-      itemCount: demoCart.items.reduce((sum, current) => sum + current.quantity, 0),
-    };
-
-    return { item, totals: demoCart.totals };
-  }
+  return response.data.data;
 }
 
 export async function updateCartItem(
@@ -152,7 +162,8 @@ export async function updateCartItem(
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    const item = demoCart.items.find(
+    const cart = getGuestCart();
+    const item = cart.items.find(
       (current) => current.productId === productId,
     );
 
@@ -160,26 +171,20 @@ export async function updateCartItem(
       throw new Error('Cart item not found');
     }
 
-    item.quantity = Math.max(1, quantity);
+    const items = cart.items.map((current) =>
+      current.productId === productId
+        ? {
+            ...current,
+            quantity: Math.max(1, quantity),
+          }
+        : current,
+    );
 
-    demoCart.totals = {
-      subtotal: demoCart.items.reduce(
-        (sum, current) => sum + current.price * current.quantity,
-        0,
-      ),
-      total: demoCart.items.reduce(
-        (sum, current) => sum + current.price * current.quantity,
-        0,
-      ),
-      itemCount: demoCart.items.reduce(
-        (sum, current) => sum + current.quantity,
-        0,
-      ),
-    };
+    saveGuestCart(items);
 
     return {
-      cart: demoCart,
-      totals: demoCart.totals,
+      cart: createCart(items),
+      totals: calculateCartTotals(items),
     };
   }
 
@@ -195,28 +200,17 @@ export async function removeCartItem(productId: string) {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    demoCart.items = demoCart.items.filter(
+    const cart = getGuestCart();
+
+    const items = cart.items.filter(
       (item) => item.productId !== productId,
     );
 
-    demoCart.totals = {
-      subtotal: demoCart.items.reduce(
-        (sum, current) => sum + current.price * current.quantity,
-        0,
-      ),
-      total: demoCart.items.reduce(
-        (sum, current) => sum + current.price * current.quantity,
-        0,
-      ),
-      itemCount: demoCart.items.reduce(
-        (sum, current) => sum + current.quantity,
-        0,
-      ),
-    };
+    saveGuestCart(items);
 
     return {
-      cart: demoCart,
-      totals: demoCart.totals,
+      cart: createCart(items),
+      totals: calculateCartTotals(items),
     };
   }
 
@@ -227,6 +221,79 @@ export async function removeCartItem(productId: string) {
   return response.data.data;
 }
 
+export async function mergeGuestCart() {
+  const token = localStorage.getItem('accessToken');
+
+  if (!token) {
+    return;
+  }
+
+  let guestCart = getGuestCart();
+
+  if (!guestCart.items.length) {
+    return;
+  }
+
+  const response = await api.get('/marketplace/cart');
+
+  const serverCart = response.data.data as {
+    items?: CartItem[];
+  };
+
+  let serverItems = serverCart.items ?? [];
+
+  for (const guestItem of [...guestCart.items]) {
+    const existing = serverItems.find(
+      (item) => item.productId === guestItem.productId,
+    );
+
+    if (existing) {
+      await api.patch(
+        `/marketplace/cart/items/${guestItem.productId}`,
+        {
+          quantity: existing.quantity + guestItem.quantity,
+        },
+      );
+
+      serverItems = serverItems.map((item) =>
+        item.productId === guestItem.productId
+          ? {
+              ...item,
+              quantity: existing.quantity + guestItem.quantity,
+            }
+          : item,
+      );
+    } else {
+      await api.post('/marketplace/cart/items', {
+        productId: guestItem.productId,
+        businessId: guestItem.businessId,
+        quantity: guestItem.quantity,
+      });
+
+      serverItems = [
+        ...serverItems,
+        {
+          ...guestItem,
+        },
+      ];
+    }
+
+    // Remove only the item that has successfully merged.
+    // If a later item fails, the remaining guest items stay
+    // in localStorage and can safely be retried.
+    guestCart = getGuestCart();
+
+    const remainingItems = guestCart.items.filter(
+      (item) => item.productId !== guestItem.productId,
+    );
+
+    saveGuestCart(remainingItems);
+  }
+
+  clearGuestCart();
+}
+
+
 export async function createOrder(payload: {
   items: CartItem[];
   paymentMethod: string;
@@ -236,83 +303,44 @@ export async function createOrder(payload: {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    const order: Order = {
-      _id: `order-${Date.now()}`,
-      status: 'pending',
-      items: payload.items,
-      subtotal: payload.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      deliveryFee: payload.shippingMethod === 'express' ? 15000 : payload.shippingMethod === 'pickup' ? 0 : 5000,
-      paymentFee: payload.paymentMethod === 'mobile_money' ? 500 : payload.paymentMethod === 'card' ? 1200 : 0,
-      total:
-        payload.items.reduce((sum, item) => sum + item.price * item.quantity, 0) +
-        (payload.shippingMethod === 'express' ? 15000 : payload.shippingMethod === 'pickup' ? 0 : 5000) +
-        (payload.paymentMethod === 'mobile_money' ? 500 : payload.paymentMethod === 'card' ? 1200 : 0),
-      currency: payload.items[0]?.currency ?? 'UGX',
-      paymentMethod: payload.paymentMethod,
-      shippingMethod: payload.shippingMethod,
-      deliveryAddress: payload.deliveryAddress,
-    };
-
-    demoOrders.unshift(order);
-    demoCart.items = [];
-    demoCart.totals = { subtotal: 0, total: 0, itemCount: 0 };
-
-    return order;
+    throw new Error('Authentication is required before checkout.');
   }
 
-  try {
-    const response = await api.post('/marketplace/orders', {
-      ...payload,
-      items: payload.items.map((item) => ({
-        productId: item.productId,
-        businessId: item.businessId,
-        quantity: item.quantity,
-      })),
-    });
+  const response = await api.post('/marketplace/orders', {
+    ...payload,
+    items: payload.items.map((item) => ({
+      productId: item.productId,
+      businessId: item.businessId,
+      quantity: item.quantity,
+    })),
+  });
 
-    return response.data.data;
-  } catch {
-    const order: Order = {
-      _id: `order-${Date.now()}`,
-      status: 'pending',
-      items: payload.items,
-      subtotal: payload.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      deliveryFee: payload.shippingMethod === 'express' ? 15000 : payload.shippingMethod === 'pickup' ? 0 : 5000,
-      paymentFee: payload.paymentMethod === 'mobile_money' ? 500 : payload.paymentMethod === 'card' ? 1200 : 0,
-      total:
-        payload.items.reduce((sum, item) => sum + item.price * item.quantity, 0) +
-        (payload.shippingMethod === 'express' ? 15000 : payload.shippingMethod === 'pickup' ? 0 : 5000) +
-        (payload.paymentMethod === 'mobile_money' ? 500 : payload.paymentMethod === 'card' ? 1200 : 0),
-      currency: payload.items[0]?.currency ?? 'UGX',
-      paymentMethod: payload.paymentMethod,
-      shippingMethod: payload.shippingMethod,
-      deliveryAddress: payload.deliveryAddress,
-    };
-
-    demoOrders.unshift(order);
-
-    return order;
-  }
+  return response.data.data;
 }
 
 export async function getOrders() {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    return demoOrders;
+    return [];
   }
 
-  try {
-    const response = await api.get('/marketplace/orders');
-    return response.data.data;
-  } catch {
-    return demoOrders;
-  }
+  const response = await api.get('/marketplace/orders');
+
+  return response.data.data;
 }
 
-
 export async function cancelOrder(orderId: string) {
-  const response = await api.post(`/marketplace/orders/${orderId}/cancel`);
+  const token = localStorage.getItem('accessToken');
+
+  if (!token) {
+    throw new Error('Authentication is required to cancel an order.');
+  }
+
+  const response = await api.post(
+    `/marketplace/orders/${orderId}/cancel`,
+  );
+
   return response.data.data;
 }
 
@@ -320,44 +348,33 @@ export async function getOrder(orderId: string) {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    return demoOrders.find((order) => order._id === orderId) ?? null;
+    return null;
   }
 
-  try {
-    const response = await api.get(`/marketplace/orders/${orderId}`);
-    return response.data.data;
-  } catch {
-    return demoOrders.find((order) => order._id === orderId) ?? null;
-  }
+  const response = await api.get(
+    `/marketplace/orders/${orderId}`,
+  );
+
+  return response.data.data;
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus) {
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+) {
   const token = localStorage.getItem('accessToken');
 
   if (!token) {
-    const order = demoOrders.find((item) => item._id === orderId);
-
-    if (!order) return null;
-
-    order.status = status;
-
-    return order;
-  }
-
-  try {
-    const response = await api.patch(
-      `/marketplace/orders/${orderId}/status`,
-      { status },
+    throw new Error(
+      'Authentication is required to update an order.',
     );
-
-    return response.data.data;
-  } catch {
-    const order = demoOrders.find((item) => item._id === orderId);
-
-    if (!order) return null;
-
-    order.status = status;
-
-    return order;
   }
+
+  const response = await api.patch(
+    `/marketplace/orders/${orderId}/status`,
+    { status },
+  );
+
+  return response.data.data;
 }
+

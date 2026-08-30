@@ -15,6 +15,7 @@ import {
   logoutUser,
   registerUser,
 } from '../services/authService';
+import { mergeGuestCart } from '../services/commerceService';
 
 import type {
   AccountType,
@@ -118,9 +119,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = useCallback(async (email: string, password: string) => {
     const response = await loginUser(email, password);
     const authenticatedUser = response.data.user;
+    const authenticatedToken = response.data.accessToken;
 
-    setAccessToken(response.data.accessToken);
+    // Keep persisted and in-memory authentication state synchronized.
+    localStorage.setItem('accessToken', authenticatedToken);
+    localStorage.setItem('authUser', JSON.stringify(authenticatedUser));
+
+    setAccessToken(authenticatedToken);
     setUser(authenticatedUser);
+    setIsLoading(false);
+
+    // Merge products that were added while the user was logged out.
+    // The guest cart remains in localStorage if the merge fails.
+    try {
+      await mergeGuestCart();
+    } catch (error) {
+      console.error('Failed to merge guest cart after login:', error);
+    }
 
     return authenticatedUser;
   }, []);

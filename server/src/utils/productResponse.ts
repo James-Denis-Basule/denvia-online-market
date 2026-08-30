@@ -14,6 +14,7 @@ export function toPublicProduct(product: IProduct) {
 
   return {
     _id: product._id.toString(),
+    businessId: product.businessId.toString(),
     name: product.name,
     slug: product.slug,
     description: product.description,
