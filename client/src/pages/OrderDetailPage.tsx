@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Container from '../components/layout/Container';
 import api from '../services/api';
 import axios from 'axios';
-import { getOrder, type Order } from '../services/commerceService';
+import {
+  cancelOrder,
+  getOrder,
+  type Order,
+} from '../services/commerceService';
 import { getDelivery, updateDeliveryStatus, type DeliveryRecord } from '../services/deliveryService';
 
 const statusStyles: Record<string, string> = {
@@ -21,6 +26,12 @@ const statusStyles: Record<string, string> = {
 
 function OrderDetailPage() {
   const { orderId } = useParams();
+  const { user } = useAuth();
+
+  const canManageDelivery =
+    user?.role === 'business_owner' ||
+    user?.role === 'business_staff' ||
+    user?.role === 'admin';
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(Boolean(orderId));
   const [courier, setCourier] = useState<string>('local_dispatch');
@@ -33,6 +44,8 @@ function OrderDetailPage() {
   const [deliveryActionLoading, setDeliveryActionLoading] = useState(false);
   const [deliveryActionError, setDeliveryActionError] = useState<string | null>(null);
   const [deliveryActionSuccess, setDeliveryActionSuccess] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orderId) {
@@ -155,14 +168,69 @@ function OrderDetailPage() {
               </div>
             </div>
 
+            {order.status === 'pending' && (
+              <div className="mt-6 border-t border-gray-200 pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  disabled={cancelLoading}
+                  onClick={async () => {
+                    if (!order._id) return;
+
+                    const confirmed = window.confirm(
+                      'Are you sure you want to cancel this order? This action cannot be undone.',
+                    );
+
+                    if (!confirmed) return;
+
+                    setCancelError(null);
+                    setCancelLoading(true);
+
+                    try {
+                      const cancelledOrder = await cancelOrder(order._id);
+
+                      setOrder(
+                        cancelledOrder ?? {
+                          ...order,
+                          status: 'cancelled',
+                        },
+                      );
+                    } catch (error: unknown) {
+                      console.error(error);
+
+                      const message = axios.isAxiosError(error)
+                        ? error.response?.data?.message
+                        : undefined;
+
+                      setCancelError(
+                        message ?? 'Unable to cancel this order. Please try again.',
+                      );
+                    } finally {
+                      setCancelLoading(false);
+                    }
+                  }}
+                >
+                  {cancelLoading ? 'Cancelling order...' : 'Cancel order'}
+                </Button>
+
+                {cancelError && (
+                  <p className="mt-2 text-sm text-red-600">
+                    {cancelError}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="mt-6">
               <Link to="/orders">
                 <Button variant="outline" className="w-full">Back to orders</Button>
               </Link>
             </div>
 
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900">Assign delivery</h3>
+            {canManageDelivery && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-900">Assign delivery</h3>
               <p className="text-sm text-gray-500">Assign a courier and optional tracking code for this order.</p>
 
               <div className="mt-3 space-y-3">
@@ -377,7 +445,8 @@ function OrderDetailPage() {
                   )}
                 </div>
               </div>
-            </div>
+              </div>
+            )}
           </Card>
         </div>
       </Container>

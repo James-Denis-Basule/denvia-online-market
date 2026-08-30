@@ -56,8 +56,8 @@ function CheckoutPage() {
       deliveryAddress,
     });
 
-    if (order) {
-      navigate('/orders');
+    if (order?._id) {
+      navigate(`/orders/${order._id}`);
     }
 
     setIsSubmitting(false);

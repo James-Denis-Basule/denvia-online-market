@@ -310,6 +310,12 @@ export async function getOrders() {
   }
 }
 
+
+export async function cancelOrder(orderId: string) {
+  const response = await api.post(`/marketplace/orders/${orderId}/cancel`);
+  return response.data.data;
+}
+
 export async function getOrder(orderId: string) {
   const token = localStorage.getItem('accessToken');
 
