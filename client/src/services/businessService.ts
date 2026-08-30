@@ -34,6 +34,15 @@ interface BusinessesResponse {
     businesses: Business[];
   };
 }
+interface BusinessImageUploadResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    url: string;
+    publicId: string;
+    type: "logo" | "cover";
+  };
+}
 
 export async function getMyBusinesses(): Promise<BusinessesResponse> {
   const response = await api.get<BusinessesResponse>('/businesses/my-businesses');
@@ -83,6 +92,24 @@ export async function deleteBusiness(
     success: boolean;
     message?: string;
   }>(`/businesses/${businessId}`);
+
+  return response.data;
+}
+
+export async function uploadBusinessImage(
+  businessId: string,
+  file: File,
+  type: "logo" | "cover",
+): Promise<BusinessImageUploadResponse> {
+  const formData = new FormData();
+
+  formData.append("image", file);
+  formData.append("type", type);
+
+  const response = await api.post<BusinessImageUploadResponse>(
+    `/businesses/${businessId}/image`,
+    formData,
+  );
 
   return response.data;
 }

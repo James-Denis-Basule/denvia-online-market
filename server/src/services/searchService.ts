@@ -148,6 +148,7 @@ export async function searchMarketplace(input: SearchQueryInput) {
   const serviceFilter: any = {
     status: "active",
     isVisible: true,
+    isDeleted: false,
     $or: [
       { name: searchRegex },
       { description: searchRegex },

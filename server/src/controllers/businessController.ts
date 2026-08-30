@@ -16,6 +16,10 @@ import {
 } from "../services/businessService.js";
 
 import {
+  uploadBusinessImage as uploadBusinessImageToCloudinary,
+} from "../services/cloudinaryService.js";
+
+import {
   createBusinessSchema,
   publicBusinessQuerySchema,
   updateBusinessSchema,
@@ -24,6 +28,7 @@ import {
 import { publicProductQuerySchema } from "../types/product.js";
 
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import Business from "../models/Business.js";
 
 export async function createBusinessController(
   req: AuthenticatedRequest,
@@ -295,6 +300,80 @@ export async function getBusinessWhatsAppLinkController(
     res.status(200).json({
       success: true,
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function uploadBusinessImageController(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        message: "Please select an image to upload",
+      });
+      return;
+    }
+
+    const type =
+      req.body.type === "cover"
+        ? "cover"
+        : req.body.type === "logo"
+          ? "logo"
+          : null;
+
+    if (!type) {
+      res.status(400).json({
+        success: false,
+        message: "Image type must be logo or cover",
+      });
+      return;
+    }
+
+    const business = await Business.findOne({
+      _id: req.params.id,
+      ownerId: req.user.userId,
+    });
+
+    if (!business) {
+      throw new AppError(
+        "Business not found or you do not have permission to modify it",
+        404,
+      );
+    }
+
+    const uploadedImage = await uploadBusinessImageToCloudinary(
+      req.file.buffer,
+      req.file.originalname,
+      type,
+    );
+
+    if (type === "logo") {
+      business.logo = uploadedImage.secure_url;
+    } else {
+      business.coverImage = uploadedImage.secure_url;
+    }
+
+    await business.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Business image uploaded successfully",
+      data: {
+        business,
+        url: uploadedImage.secure_url,
+        publicId: uploadedImage.public_id,
+        type,
+      },
     });
   } catch (error) {
     next(error);

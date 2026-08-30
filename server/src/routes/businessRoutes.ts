@@ -11,11 +11,13 @@ import {
   getPublicBusinessProductsController,
   getBusinessWhatsAppLinkController,
   selectBusinessController,
+  uploadBusinessImageController,
 } from "../controllers/businessController.js";
 
 import { authenticate } from "../middleware/authMiddleware.js";
 
 import { getPublicServicesController } from "../controllers/serviceController.js";
+// import { uploadBusinessImage } from "../middleware/uploadMiddleware.js";
 
 const router = Router();
 
@@ -64,6 +66,16 @@ router.get("/:businessId/whatsapp", getBusinessWhatsAppLinkController);
  * Update authenticated user's business
  */
 router.patch("/my/:id", authenticate, updateBusinessController);
+
+/**
+ * Upload business logo or cover image
+ */
+router.post(
+  "/:id/image",
+  authenticate,
+  // uploadBusinessImage.single("image"),
+  uploadBusinessImageController,
+);
 
 /**
  * Delete authenticated user's business

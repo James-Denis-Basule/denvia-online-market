@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { FormEvent } from "react";
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import Container from "../components/layout/Container";
 
@@ -13,6 +13,9 @@ const LOGO_URL =
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo =
+    new URLSearchParams(location.search).get("returnTo") || "/dashboard";
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -29,7 +32,7 @@ function LoginPage() {
 
       await login(email, password);
 
-      navigate("/dashboard");
+      navigate(returnTo);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       const message =
@@ -226,7 +229,7 @@ function LoginPage() {
               </div>
 
               <Link
-                to="/register"
+                to={`/register?type=customer&returnTo=${encodeURIComponent(returnTo)}`}
                 className="block w-full rounded-2xl border border-gray-200 px-4 py-3.5 text-center font-semibold text-gray-800 transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
               >
                 Create a new account

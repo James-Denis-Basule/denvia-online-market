@@ -76,7 +76,7 @@ function HomePage() {
 
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Link to="/register">
-                <Button className="w-full bg-white text-blue-700 shadow-lg hover:bg-blue-50 sm:w-auto">
+                <Button className="w-full bg-blue-600 text-white border-white hover:bg-blue-50 sm:w-auto">
                   Create Business
                 </Button>
               </Link>
@@ -84,7 +84,7 @@ function HomePage() {
               <Link to="/businesses">
                 <Button
                   variant="outline"
-                  className="w-full border-white/40 bg-white/10 text-white hover:bg-white/20 sm:w-auto"
+                  className="w-full border-white/40 bg-white/10 text-white sm:w-auto"
                 >
                   Explore Marketplace
                 </Button>

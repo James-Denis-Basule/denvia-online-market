@@ -18,6 +18,7 @@ function RegisterPage() {
   const { register } = useAuth();
 
   const requestedAccountType = searchParams.get("type");
+  const returnTo = searchParams.get("returnTo") || "";
 
   const accountType: AccountType =
     requestedAccountType === "business" ? "business" : "customer";
@@ -52,7 +53,15 @@ function RegisterPage() {
         accountType,
       });
 
-      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+      const params = new URLSearchParams({
+        email: email.trim(),
+      });
+
+      if (returnTo) {
+        params.set("returnTo", returnTo);
+      }
+
+      navigate(`/verify-email?${params.toString()}`);
     } catch (err: unknown) {
       const error = err as {
         response?: {

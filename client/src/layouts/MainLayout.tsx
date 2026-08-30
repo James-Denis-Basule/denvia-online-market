@@ -1,9 +1,15 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 const LOGO_URL =
-  'https://res.cloudinary.com/dy3a8sgs7/image/upload/v1787605738/ChatGPT_Image_Aug_22_2026_at_01_25_02_AM_kbz3h0.png';
+  "https://res.cloudinary.com/dy3a8sgs7/image/upload/v1787605738/ChatGPT_Image_Aug_22_2026_at_01_25_02_AM_kbz3h0.png";
 
 function MainLayout() {
   const auth = useContext(AuthContext);
@@ -11,66 +17,81 @@ function MainLayout() {
   const navigate = useNavigate();
 
   const isAuthenticated = Boolean(auth?.isAuthenticated);
-  const isDashboard = location.pathname.startsWith('/dashboard');
+  const isBusinessAccount =
+    isAuthenticated && Boolean(auth?.user?.accountTypes?.includes("business"));
+  const isDashboard = location.pathname.startsWith("/dashboard");
+  const homeDestination = isBusinessAccount ? "/dashboard" : "/";
+
+  const customerNavigation = [
+    { label: "Home", to: "/" },
+    { label: "Businesses", to: "/businesses" },
+    { label: "Products", to: "/products" },
+    { label: "Cart", to: "/cart" },
+    { label: "Orders", to: "/orders" },
+  ];
+
+  const businessNavigation = [
+    { label: "Home", to: "/" },
+    { label: "Businesses", to: "/businesses" },
+    { label: "Products", to: "/products" },
+    { label: "Cart", to: "/cart" },
+    { label: "Orders", to: "/orders" },
+    { label: "Dashboard", to: "/dashboard" },
+    { label: "Services", to: "/services/manage" },
+    { label: "AI Assistant", to: "/chat" },
+  ];
 
   const publicNavigation = [
-    { label: 'Home', to: '/' },
-    { label: 'Businesses', to: '/businesses' },
-    { label: 'Products', to: '/products' },
+    { label: "Home", to: "/" },
+    { label: "Businesses", to: "/businesses" },
+    { label: "Products", to: "/products" },
+    { label: "Cart", to: "/cart" },
   ];
 
-  const authenticatedNavigation = [
-    { label: 'Home', to: '/' },
-    { label: 'Businesses', to: '/businesses' },
-    { label: 'Products', to: '/products' },
-    { label: 'Cart', to: '/cart' },
-    { label: 'Orders', to: '/orders' },
-    { label: 'Dashboard', to: '/dashboard' },
-    { label: 'AI Assistant', to: '/chat' },
-  ];
-
-  const navigation = isAuthenticated
-    ? authenticatedNavigation
-    : publicNavigation;
+  const navigation = !isAuthenticated
+    ? publicNavigation
+    : isBusinessAccount
+      ? businessNavigation
+      : customerNavigation;
 
   const userName = auth?.user
-    ? `${auth.user.firstName ?? ''} ${auth.user.lastName ?? ''}`.trim()
-    : '';
+    ? `${auth.user.firstName ?? ""} ${auth.user.lastName ?? ""}`.trim()
+    : "";
 
   const userInitial =
     userName.charAt(0).toUpperCase() ||
     auth?.user?.email?.charAt(0).toUpperCase() ||
-    'U';
+    "U";
 
   const handleLogout = async () => {
     if (!auth) return;
 
     await auth.logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
-      'group relative rounded-2xl px-3 py-2 text-sm font-semibold transition-all duration-200',
+      "group relative rounded-2xl px-3 py-2 text-sm font-semibold transition-all duration-200",
       isActive
-        ? 'bg-blue-50 text-blue-700'
-        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-950',
-    ].join(' ');
+        ? "bg-blue-50 text-blue-700"
+        : "text-gray-600 hover:bg-gray-50 hover:text-gray-950",
+    ].join(" ");
 
   const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
-      'whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all duration-200',
+      "whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all duration-200",
       isActive
-        ? 'bg-blue-600 text-white shadow-sm'
-        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-    ].join(' ');
+        ? "bg-blue-600 text-white shadow-sm"
+        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+    ].join(" ");
 
   return (
     <div className="flex min-h-screen flex-col bg-transparent">
       <header className="sticky top-0 z-50 border-b border-gray-200/70 bg-white/80 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link
-            to={isAuthenticated ? '/dashboard' : '/'}
+            to={homeDestination}
             className="group flex min-w-0 shrink-0 items-center gap-3"
           >
             <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-md shadow-blue-200 transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-blue-200">
@@ -83,14 +104,11 @@ function MainLayout() {
 
             <span className="hidden min-w-0 sm:block">
               <span className="block truncate text-[15px] font-extrabold tracking-tight text-gray-950">
-                Denvia{' '}
-                <span className="text-blue-600">Online Market</span>
+                Denvia <span className="text-blue-600">Online Market</span>
               </span>
 
               <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
-                {isDashboard
-                  ? 'Business Center'
-                  : 'Discover • Connect • Grow'}
+                {isDashboard ? "Business Center" : "Discover • Connect • Grow"}
               </span>
             </span>
           </Link>
@@ -100,26 +118,23 @@ function MainLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === "/"}
                 className={navLinkClass}
               >
                 {item.label}
 
                 <span
                   className={[
-                    'absolute bottom-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-blue-600 transition-all duration-200',
-                    'group-hover:w-3',
-                  ].join(' ')}
+                    "absolute bottom-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-blue-600 transition-all duration-200",
+                    "group-hover:w-3",
+                  ].join(" ")}
                 />
               </NavLink>
             ))}
 
             {!isAuthenticated ? (
               <div className="ml-3 flex items-center gap-2 border-l border-gray-200 pl-3">
-                <NavLink
-                  to="/login"
-                  className={navLinkClass}
-                >
+                <NavLink to="/login" className={navLinkClass}>
                   Login
                 </NavLink>
 
@@ -139,11 +154,13 @@ function MainLayout() {
 
                   <div className="hidden max-w-32 lg:block">
                     <p className="truncate text-xs font-bold text-gray-900">
-                      {userName || 'Account'}
+                      {userName || "Account"}
                     </p>
 
                     <p className="text-[10px] font-medium text-gray-500">
-                      Business account
+                      {auth?.user?.accountTypes?.includes("business")
+                        ? "Business account"
+                        : "Customer account"}
                     </p>
                   </div>
                 </div>
@@ -166,17 +183,19 @@ function MainLayout() {
                   {userInitial}
                 </span>
 
-                <Link
-                  to="/dashboard"
-                  className={[
-                    'rounded-2xl px-3 py-2 text-xs font-bold transition-all',
-                    isDashboard
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
-                  ].join(' ')}
-                >
-                  Dashboard
-                </Link>
+                {isBusinessAccount && (
+                  <Link
+                    to="/dashboard"
+                    className={[
+                      "rounded-2xl px-3 py-2 text-xs font-bold transition-all",
+                      isDashboard
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-blue-50 text-blue-700 hover:bg-blue-100",
+                    ].join(" ")}
+                  >
+                    Dashboard
+                  </Link>
+                )}
               </>
             ) : (
               <Link
@@ -195,7 +214,7 @@ function MainLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === "/"}
                 className={mobileNavLinkClass}
               >
                 {item.label}

@@ -7,8 +7,6 @@ import {
   updateServiceController,
   deleteServiceController,
   getPublicServicesController,
-  getDeletedServicesController,
-  restoreServiceController,
 } from "../controllers/serviceController.js";
 
 import { authenticate } from "../middleware/authMiddleware.js";
@@ -29,34 +27,15 @@ router.get(
 /**
  * Get services belonging to the authenticated user's business
  */
-/**
- * Get deleted services belonging to the authenticated user's business.
- *
- * IMPORTANT:
- * This must come before "/business/:businessId"
- * so that "bin" is not interpreted as a business ID.
- */
-router.get(
-  "/business/:businessId/bin",
-  authenticate,
-  getDeletedServicesController,
-);
-
-/**
- * Get services belonging to the authenticated user's business
- */
 router.get(
   "/business/:businessId",
   authenticate,
   getMyServicesController,
 );
 
-router.post(
-  "/:id/restore",
-  authenticate,
-  restoreServiceController,
-);
-
+/**
+ * Get a single service belonging to the authenticated user
+ */
 router.get(
   "/:id",
   authenticate,

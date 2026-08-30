@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Container from '../components/layout/Container';
 import { createOrder, getCart, type CartItem } from '../services/commerceService';
+import { useAuth } from '../hooks/useAuth';
 
 const shippingFees = {
   standard: 5000,
@@ -21,6 +22,7 @@ const paymentFees = {
 
 function CheckoutPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [shippingMethod, setShippingMethod] = useState('standard');
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
@@ -47,6 +49,12 @@ function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!items.length) return;
+
+    if (!isAuthenticated) {
+      navigate(`/login?returnTo=${encodeURIComponent("/checkout")}`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     const order = await createOrder({
@@ -168,7 +176,11 @@ function CheckoutPage() {
 
             <div className="mt-6 flex flex-col gap-3">
               <Button type="button" onClick={handlePlaceOrder} disabled={isSubmitting || !items.length}>
-                {isSubmitting ? 'Placing order...' : 'Place order'}
+                {isSubmitting
+                  ? 'Placing order...'
+                  : isAuthenticated
+                    ? 'Place order'
+                    : 'Sign in to place order'}
               </Button>
               <Link to="/cart">
                 <Button variant="outline" className="w-full">

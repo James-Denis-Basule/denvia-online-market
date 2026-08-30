@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useCallback,
@@ -108,15 +109,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   useEffect(() => {
-    void refreshUser();
+    const id = window.setTimeout(() => {
+      void refreshUser();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await loginUser(email, password);
     const authenticatedUser = response.data.user;
+    const authenticatedToken = response.data.accessToken;
 
-    setAccessToken(response.data.accessToken);
+    // Keep persisted and in-memory authentication state synchronized.
+    localStorage.setItem('accessToken', authenticatedToken);
+    localStorage.setItem('authUser', JSON.stringify(authenticatedUser));
+
+    setAccessToken(authenticatedToken);
     setUser(authenticatedUser);
+    setIsLoading(false);
 
     return authenticatedUser;
   }, []);

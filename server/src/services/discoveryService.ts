@@ -233,6 +233,7 @@ export const getNewServices = async (limit = 10) => {
       $match: {
         status: "active",
         isVisible: true,
+        isDeleted: false,
       },
     },
 

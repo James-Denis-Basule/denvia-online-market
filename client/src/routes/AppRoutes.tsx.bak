@@ -75,13 +75,10 @@ function AppRoutes() {
           </Route>
 
 
-          {/* Cart and checkout are available to guests.
-              Authentication is required only when completing the order. */}
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-
           <Route element={<ProtectedRoute />}>
             {/* Customer authenticated pages */}
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:orderId" element={<OrderDetailPage />} />
 

@@ -9,8 +9,6 @@ import {
   updateService,
   deleteService,
   getPublicServices,
-  getDeletedServices,
-  restoreService,
 } from "../services/serviceService.js";
 
 import { createServiceSchema, updateServiceSchema } from "../types/service.js";
@@ -179,60 +177,6 @@ export async function deleteServiceController(
     res.status(200).json({
       success: true,
       message: "Service deleted successfully",
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-
-export async function getDeletedServicesController(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-) {
-  try {
-    if (!req.user) {
-      throw new AppError("Authentication required", 401);
-    }
-
-    const services = await getDeletedServices(
-      req.user.userId,
-      String(req.params.businessId),
-    );
-
-    res.status(200).json({
-      success: true,
-      data: {
-        services,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function restoreServiceController(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-) {
-  try {
-    if (!req.user) {
-      throw new AppError("Authentication required", 401);
-    }
-
-    const service = await restoreService(
-      req.user.userId,
-      String(req.params.id),
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Service restored successfully",
-      data: {
-        service,
-      },
     });
   } catch (error) {
     next(error);

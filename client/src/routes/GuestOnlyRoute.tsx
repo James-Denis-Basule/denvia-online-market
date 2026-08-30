@@ -1,12 +1,11 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth';
 
-function ProtectedRoute() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const location = useLocation();
+function GuestOnlyRoute() {
+  const { isAuthenticated, isLoading, user } = useAuth();
 
-  if (authLoading) {
+  if (isLoading) {
     return (
       <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -19,19 +18,15 @@ function ProtectedRoute() {
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{
-          from: location.pathname + location.search,
-        }}
-      />
-    );
+  if (isAuthenticated) {
+    const destination = user?.accountTypes?.includes("business")
+      ? "/dashboard"
+      : "/";
+
+    return <Navigate to={destination} replace />;
   }
 
   return <Outlet />;
 }
 
-export default ProtectedRoute;
+export default GuestOnlyRoute;

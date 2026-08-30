@@ -32,8 +32,6 @@ export interface IService extends Document {
 
   status: ServiceStatus;
   isVisible: boolean;
-  isDeleted: boolean;
-  deletedAt?: Date;
 
   createdAt: Date;
   updatedAt: Date;
@@ -118,17 +116,6 @@ const serviceSchema = new Schema<IService>(
       type: Boolean,
       default: true,
     },
-
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-
-    deletedAt: {
-      type: Date,
-      default: null,
-    },
   },
   {
     timestamps: true,
@@ -141,12 +128,6 @@ serviceSchema.index({
 }, {
   unique: true,
 });
-
-// Automatically permanently delete services 30 days after they enter the Bin.
-serviceSchema.index(
-  { deletedAt: 1 },
-  { expireAfterSeconds: 30 * 24 * 60 * 60 },
-);
 
 const Service = mongoose.model<IService>(
   "Service",
