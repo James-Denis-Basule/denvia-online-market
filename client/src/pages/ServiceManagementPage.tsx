@@ -1,17 +1,29 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
-import Container from '../components/layout/Container';
-import LoadingState from '../components/ui/LoadingState';
-import { useBusiness } from '../context/BusinessContext';
+import { useEffect, useState } from "react";
+
+import { useNavigate } from "react-router-dom";
+import type { FormEvent } from "react";
+import Container from "../components/layout/Container";
+import LoadingState from "../components/ui/LoadingState";
+import { useBusiness } from "../context/BusinessContext";
 import {
   createService,
   deleteService,
   getMyServices,
+  getDeletedServices,
+  restoreService,
   updateService,
   type PricingType,
   type Service,
   type ServiceStatus,
-} from '../services/serviceService';
+} from "../services/serviceService";
+
+type ServiceFilter =
+  | "all"
+  | "activated"
+  | "archived"
+  | "visible"
+  | "hidden"
+  | "deleted";
 
 type ServiceForm = {
   name: string;
@@ -26,29 +38,63 @@ type ServiceForm = {
 };
 
 const emptyForm: ServiceForm = {
-  name: '',
-  description: '',
-  category: '',
-  price: '',
-  currency: 'UGX',
-  pricingType: 'fixed',
-  duration: '',
-  status: 'active',
+  name: "",
+  description: "",
+  category: "",
+  price: "",
+  currency: "UGX",
+  pricingType: "fixed",
+  duration: "",
+  status: "active",
   isVisible: true,
 };
 
+const serviceCategories = [
+  "Accounting & Finance",
+  "Advertising & Marketing",
+  "Beauty & Personal Care",
+  "Business Consulting",
+  "Cleaning",
+  "Construction",
+  "Education & Training",
+  "Events & Entertainment",
+  "Food & Catering",
+  "Health & Wellness",
+  "IT & Technology",
+  "Legal Services",
+  "Photography & Media",
+  "Professional Services",
+  "Repairs & Maintenance",
+  "Transportation",
+  "Other",
+];
+
+const currencies = [
+  { code: "UGX", name: "Ugandan Shilling" },
+  { code: "USD", name: "US Dollar" },
+  { code: "KES", name: "Kenyan Shilling" },
+  { code: "TZS", name: "Tanzanian Shilling" },
+  { code: "RWF", name: "Rwandan Franc" },
+  { code: "EUR", name: "Euro" },
+  { code: "GBP", name: "British Pound" },
+];
+
 function ServiceManagementPage() {
+  const navigate = useNavigate();
   const { businesses, activeBusiness, selectActiveBusiness } = useBusiness();
 
   const [services, setServices] = useState<Service[]>([]);
+  const [deletedServices, setDeletedServices] = useState<Service[]>([]);
+  const [serviceFilter, setServiceFilter] =
+    useState<ServiceFilter>("all");
   const [form, setForm] = useState<ServiceForm>(emptyForm);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [workingId, setWorkingId] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [workingId, setWorkingId] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   async function loadServices() {
@@ -59,13 +105,18 @@ function ServiceManagementPage() {
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const response = await getMyServices(activeBusiness._id);
+      const [response, binResponse] = await Promise.all([
+        getMyServices(activeBusiness._id),
+        getDeletedServices(activeBusiness._id),
+      ]);
+
       setServices(response.data?.services ?? []);
+      setDeletedServices(binResponse.data?.services ?? []);
     } catch {
-      setError('Unable to load your services right now.');
+      setError("Unable to load your services right now.");
       setServices([]);
     } finally {
       setLoading(false);
@@ -97,28 +148,28 @@ function ServiceManagementPage() {
 
     setForm({
       name: service.name,
-      description: service.description ?? '',
-      category: service.category ?? '',
+      description: service.description ?? "",
+      category: service.category ?? "",
       price:
         service.price === undefined || service.price === null
-          ? ''
+          ? ""
           : String(service.price),
-      currency: service.currency || 'UGX',
+      currency: service.currency || "UGX",
       pricingType: service.pricingType,
       duration:
         service.duration === undefined || service.duration === null
-          ? ''
+          ? ""
           : String(service.duration),
       status: service.status,
       isVisible: service.isVisible,
     });
 
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     window.scrollTo({
       top: 0,
-      behavior: 'smooth',
+      behavior: "smooth",
     });
   }
 
@@ -126,27 +177,27 @@ function ServiceManagementPage() {
     event.preventDefault();
 
     if (!activeBusiness?._id) {
-      setError('Create or select a business before adding a service.');
+      setError("Create or select a business before adding a service.");
       return;
     }
 
     if (!form.name.trim()) {
-      setError('Service name is required.');
+      setError("Service name is required.");
       return;
     }
 
     setSaving(true);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       category: form.category.trim() || undefined,
-      price: form.price === '' ? undefined : Number(form.price),
-      currency: form.currency.trim().toUpperCase() || 'UGX',
+      price: form.price === "" ? undefined : Number(form.price),
+      currency: form.currency.trim().toUpperCase() || "UGX",
       pricingType: form.pricingType,
-      duration: form.duration === '' ? undefined : Number(form.duration),
+      duration: form.duration === "" ? undefined : Number(form.duration),
       status: form.status,
       isVisible: form.isVisible,
     };
@@ -154,13 +205,13 @@ function ServiceManagementPage() {
     try {
       if (editingService) {
         await updateService(editingService._id, payload);
-        setSuccess('Service updated successfully.');
+        setSuccess("Service updated successfully.");
       } else {
         await createService({
           businessId: activeBusiness._id,
           ...payload,
         });
-        setSuccess('Service created successfully.');
+        setSuccess("Service created successfully.");
       }
 
       resetForm();
@@ -168,7 +219,7 @@ function ServiceManagementPage() {
     } catch (requestError: any) {
       setError(
         requestError?.response?.data?.message ||
-          'Unable to save this service right now.',
+          "Unable to save this service right now.",
       );
     } finally {
       setSaving(false);
@@ -177,7 +228,7 @@ function ServiceManagementPage() {
 
   async function handleDelete(service: Service) {
     const confirmed = window.confirm(
-      `Delete "${service.name}"? This action cannot be undone.`,
+      `Move "${service.name}" to the Bin? It will be permanently deleted after 30 days unless restored.`,
     );
 
     if (!confirmed) {
@@ -185,8 +236,8 @@ function ServiceManagementPage() {
     }
 
     setWorkingId(service._id);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     try {
       await deleteService(service._id);
@@ -195,22 +246,22 @@ function ServiceManagementPage() {
         resetForm();
       }
 
-      setSuccess('Service deleted successfully.');
+      setSuccess("Service moved to the Bin. It will be permanently deleted after 30 days.");
       await loadServices();
     } catch (requestError: any) {
       setError(
         requestError?.response?.data?.message ||
-          'Unable to delete this service right now.',
+          "Unable to delete this service right now.",
       );
     } finally {
-      setWorkingId('');
+      setWorkingId("");
     }
   }
 
   async function handleToggleVisibility(service: Service) {
     setWorkingId(service._id);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     try {
       await updateService(service._id, {
@@ -219,29 +270,65 @@ function ServiceManagementPage() {
 
       await loadServices();
     } catch {
-      setError('Unable to update service visibility.');
+      setError("Unable to update service visibility.");
     } finally {
-      setWorkingId('');
+      setWorkingId("");
     }
   }
 
   async function handleToggleStatus(service: Service) {
     setWorkingId(service._id);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     try {
       await updateService(service._id, {
-        status: service.status === 'active' ? 'archived' : 'active',
+        status: service.status === "active" ? "archived" : "active",
       });
 
       await loadServices();
     } catch {
-      setError('Unable to update service status.');
+      setError("Unable to update service status.");
     } finally {
-      setWorkingId('');
+      setWorkingId("");
     }
   }
+
+  const filteredServices =
+    serviceFilter === "deleted"
+      ? deletedServices
+      : services.filter((service) => {
+          switch (serviceFilter) {
+            case "activated":
+              return service.status === "active";
+            case "archived":
+              return service.status === "archived";
+            case "visible":
+              return service.isVisible;
+            case "hidden":
+              return !service.isVisible;
+            case "all":
+            default:
+              return true;
+          }
+        });
+
+  const filterCounts = {
+    all: services.length,
+    activated: services.filter(
+      (service) => service.status === "active",
+    ).length,
+    archived: services.filter(
+      (service) => service.status === "archived",
+    ).length,
+    visible: services.filter(
+      (service) => service.isVisible,
+    ).length,
+    hidden: services.filter(
+      (service) => !service.isVisible,
+    ).length,
+    deleted: deletedServices.length,
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 py-8 sm:py-10">
@@ -257,8 +344,8 @@ function ServiceManagementPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
-              Add and manage the services your business offers. Active,
-              visible services can appear across the Denvia marketplace.
+              Add and manage the services your business offers. Active, visible
+              services can appear across the Denvia marketplace.
             </p>
 
             {activeBusiness && (
@@ -281,7 +368,7 @@ function ServiceManagementPage() {
 
             <select
               id="business-selector"
-              value={activeBusiness?._id ?? ''}
+              value={activeBusiness?._id ?? ""}
               onChange={(event) => {
                 void selectActiveBusiness(event.target.value);
               }}
@@ -323,8 +410,8 @@ function ServiceManagementPage() {
               <div
                 className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
                   error
-                    ? 'border-red-100 bg-red-50 text-red-600'
-                    : 'border-green-100 bg-green-50 text-green-700'
+                    ? "border-red-100 bg-red-50 text-red-600"
+                    : "border-green-100 bg-green-50 text-green-700"
                 }`}
               >
                 {error || success}
@@ -335,10 +422,7 @@ function ServiceManagementPage() {
               <div className="mt-8 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => {
-                    resetForm();
-                    setShowForm(true);
-                  }}
+                  onClick={() => navigate("/services/create")}
                   className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
                 >
                   + Add Service
@@ -348,210 +432,229 @@ function ServiceManagementPage() {
 
             {showForm && (
               <>
-              <section className="mt-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-                    {editingService ? 'Edit service' : 'New service'}
-                  </p>
+                <section className="mt-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+                        {editingService ? "Edit service" : "New service"}
+                      </p>
 
-                  <h2 className="mt-1 text-2xl font-bold text-gray-900">
-                    {editingService
-                      ? `Edit ${editingService.name}`
-                      : 'Add a service'}
-                  </h2>
-                </div>
+                      <h2 className="mt-1 text-2xl font-bold text-gray-900">
+                        {editingService
+                          ? `Edit ${editingService.name}`
+                          : "Add a service"}
+                      </h2>
+                    </div>
 
-                {editingService && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel editing
-                  </button>
-                )}
-              </div>
-
-              <form
-                onSubmit={handleSubmit}
-                className="mt-6 grid gap-5 md:grid-cols-2"
-              >
-                <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-gray-800">
-                    Service name *
-                  </label>
-                  <input
-                    value={form.name}
-                    onChange={(event) =>
-                      updateForm('name', event.target.value)
-                    }
-                    placeholder="e.g. Website Design"
-                    maxLength={150}
-                    required
-                    className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-gray-800">
-                    Description
-                  </label>
-                  <textarea
-                    value={form.description}
-                    onChange={(event) =>
-                      updateForm('description', event.target.value)
-                    }
-                    placeholder="Describe what customers receive..."
-                    rows={4}
-                    maxLength={2000}
-                    className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-800">
-                    Category
-                  </label>
-                  <input
-                    value={form.category}
-                    onChange={(event) =>
-                      updateForm('category', event.target.value)
-                    }
-                    placeholder="e.g. Marketing"
-                    maxLength={100}
-                    className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-800">
-                    Pricing
-                  </label>
-                  <select
-                    value={form.pricingType}
-                    onChange={(event) =>
-                      updateForm(
-                        'pricingType',
-                        event.target.value as PricingType,
-                      )
-                    }
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  >
-                    <option value="fixed">Fixed price</option>
-                    <option value="starting_from">Starting from</option>
-                    <option value="negotiable">Negotiable</option>
-                    <option value="free">Free</option>
-                  </select>
-                </div>
-
-                {form.pricingType !== 'free' && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-800">
-                      Price
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={form.price}
-                      onChange={(event) =>
-                        updateForm('price', event.target.value)
-                      }
-                      placeholder="e.g. 150000"
-                      className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
+                    {editingService && (
+                      <button
+                        type="button"
+                        onClick={resetForm}
+                        className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                      >
+                        Cancel editing
+                      </button>
+                    )}
                   </div>
-                )}
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-800">
-                    Currency
-                  </label>
-                  <input
-                    value={form.currency}
-                    onChange={(event) =>
-                      updateForm('currency', event.target.value.toUpperCase())
-                    }
-                    maxLength={3}
-                    placeholder="UGX"
-                    className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm uppercase outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-800">
-                    Duration
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={form.duration}
-                    onChange={(event) =>
-                      updateForm('duration', event.target.value)
-                    }
-                    placeholder="Minutes"
-                    className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Enter duration in minutes.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-800">
-                    Status
-                  </label>
-                  <select
-                    value={form.status}
-                    onChange={(event) =>
-                      updateForm(
-                        'status',
-                        event.target.value as ServiceStatus,
-                      )
-                    }
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  <form
+                    onSubmit={handleSubmit}
+                    className="mt-6 grid gap-5 md:grid-cols-2"
                   >
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-semibold text-gray-800">
+                        Service name *
+                      </label>
+                      <input
+                        value={form.name}
+                        onChange={(event) =>
+                          updateForm("name", event.target.value)
+                        }
+                        placeholder="e.g. Website Design"
+                        maxLength={150}
+                        required
+                        className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
 
-                <label className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={form.isVisible}
-                    onChange={(event) =>
-                      updateForm('isVisible', event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                  />
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-semibold text-gray-800">
+                        Description
+                      </label>
+                      <textarea
+                        value={form.description}
+                        onChange={(event) =>
+                          updateForm("description", event.target.value)
+                        }
+                        placeholder="Describe what customers receive..."
+                        rows={4}
+                        maxLength={2000}
+                        className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
 
-                  <span>
-                    <span className="block text-sm font-semibold text-gray-800">
-                      Visible on marketplace
-                    </span>
-                    <span className="block text-xs text-gray-500">
-                      Allow customers to see this service.
-                    </span>
-                  </span>
-                </label>
+                    <div>
+                      <label
+                        htmlFor="service-category"
+                        className="text-sm font-semibold text-gray-800"
+                      >
+                        Category
+                      </label>
+                      <select
+                        id="service-category"
+                        value={form.category}
+                        onChange={(event) =>
+                          updateForm("category", event.target.value)
+                        }
+                        className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="">Select a category</option>
+                        {serviceCategories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div className="md:col-span-2">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {saving
-                      ? 'Saving...'
-                      : editingService
-                        ? 'Save service changes'
-                        : 'Create service'}
-                  </button>
-                </div>
-              </form>
-            </section>
+                    <div>
+                      <label className="text-sm font-semibold text-gray-800">
+                        Pricing
+                      </label>
+                      <select
+                        value={form.pricingType}
+                        onChange={(event) =>
+                          updateForm(
+                            "pricingType",
+                            event.target.value as PricingType,
+                          )
+                        }
+                        className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="fixed">Fixed price</option>
+                        <option value="starting_from">Starting from</option>
+                        <option value="negotiable">Negotiable</option>
+                        <option value="free">Free</option>
+                      </select>
+                    </div>
+
+                    {form.pricingType !== "free" && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-800">
+                          Price
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={form.price}
+                          onChange={(event) =>
+                            updateForm("price", event.target.value)
+                          }
+                          placeholder="e.g. 150000"
+                          className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label
+                        htmlFor="service-currency"
+                        className="text-sm font-semibold text-gray-800"
+                      >
+                        Currency
+                      </label>
+                      <select
+                        id="service-currency"
+                        value={form.currency}
+                        onChange={(event) =>
+                          updateForm("currency", event.target.value)
+                        }
+                        className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      >
+                        {currencies.map((currency) => (
+                          <option key={currency.code} value={currency.code}>
+                            {currency.code} — {currency.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-semibold text-gray-800">
+                        Duration
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.duration}
+                        onChange={(event) =>
+                          updateForm("duration", event.target.value)
+                        }
+                        placeholder="Minutes"
+                        className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Enter duration in minutes.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-semibold text-gray-800">
+                        Status
+                      </label>
+                      <select
+                        value={form.status}
+                        onChange={(event) =>
+                          updateForm(
+                            "status",
+                            event.target.value as ServiceStatus,
+                          )
+                        }
+                        className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="active">Active</option>
+                        <option value="draft">Draft</option>
+                        <option value="archived">Archived</option>
+                      </select>
+                    </div>
+
+                    <label className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={form.isVisible}
+                        onChange={(event) =>
+                          updateForm("isVisible", event.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                      />
+
+                      <span>
+                        <span className="block text-sm font-semibold text-gray-800">
+                          Visible on marketplace
+                        </span>
+                        <span className="block text-xs text-gray-500">
+                          Allow customers to see this service.
+                        </span>
+                      </span>
+                    </label>
+
+                    <div className="md:col-span-2">
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="w-full rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {saving
+                          ? "Saving..."
+                          : editingService
+                            ? "Save service changes"
+                            : "Create service"}
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              </>
+            )}
 
             <section className="mt-8">
               <div className="mb-4 flex items-end justify-between gap-4">
@@ -565,36 +668,85 @@ function ServiceManagementPage() {
                 </div>
 
                 <span className="text-sm font-medium text-gray-500">
-                  {services.length}{' '}
-                  {services.length === 1 ? 'service' : 'services'}
+                  {services.length}{" "}
+                  {services.length === 1 ? "service" : "services"}
                 </span>
+              </div>
+
+              <div className="mb-5 overflow-x-auto rounded-2xl border border-gray-100 bg-white p-2 shadow-sm">
+                <div className="flex min-w-max gap-2">
+                  {([
+                    ["all", "All"],
+                    ["activated", "Activated"],
+                    ["archived", "Archived"],
+                    ["visible", "Visible"],
+                    ["hidden", "Hidden"],
+                    ["deleted", "Bin"],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setServiceFilter(value)}
+                      className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                        serviceFilter === value
+                          ? value === "deleted"
+                            ? "bg-red-600 text-white"
+                            : "bg-blue-600 text-white"
+                          : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {label}
+                      <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">
+                        {filterCounts[value]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {loading ? (
                 <LoadingState count={3} className="lg:grid-cols-3" />
               ) : services.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-xl font-bold text-blue-600">
-                    +
+                <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                  <div className="px-6 py-12 text-center sm:px-10">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-3xl font-bold text-blue-600">
+                      +
+                    </div>
+
+                    <h3 className="mt-5 text-xl font-bold text-gray-900">
+                      No services yet
+                    </h3>
+
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
+                      This business has not added any services yet. Add services
+                      to showcase what your business offers to customers.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetForm();
+                        setShowForm(true);
+                      }}
+                      className="mt-6 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                    >
+                      + Add your first service
+                    </button>
                   </div>
-
-                  <h3 className="mt-4 text-lg font-bold text-gray-900">
-                    No services available
-                  </h3>
-
-                  <p className="mt-2 text-sm text-gray-500">
-                    This business has not added any services yet.
-                  </p>
                 </div>
               ) : (
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                  {services.map((service) => {
+                  {filteredServices.map((service) => {
                     const isWorking = workingId === service._id;
 
                     return (
                       <article
                         key={service._id}
-                        className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                        className={`rounded-2xl border bg-white p-5 shadow-sm ${
+                          serviceFilter === "deleted"
+                            ? "border-red-100 bg-red-50/30"
+                            : "border-gray-100"
+                        }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -609,11 +761,11 @@ function ServiceManagementPage() {
 
                           <span
                             className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                              service.status === 'active'
-                                ? 'bg-green-100 text-green-700'
-                                : service.status === 'draft'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-gray-100 text-gray-600'
+                              service.status === "active"
+                                ? "bg-green-100 text-green-700"
+                                : service.status === "draft"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-gray-100 text-gray-600"
                             }`}
                           >
                             {service.status}
@@ -638,11 +790,11 @@ function ServiceManagementPage() {
                           </p>
 
                           <p className="mt-1 text-lg font-bold text-gray-900">
-                            {service.pricingType === 'free'
-                              ? 'Free'
+                            {service.pricingType === "free"
+                              ? "Free"
                               : service.price !== undefined
                                 ? `${service.currency} ${service.price.toLocaleString()}`
-                                : 'Contact for price'}
+                                : "Contact for price"}
                           </p>
 
                           {service.duration !== undefined && (
@@ -653,6 +805,35 @@ function ServiceManagementPage() {
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2">
+                          {serviceFilter === "deleted" ? (
+                            <button
+                              type="button"
+                              disabled={isWorking}
+                              onClick={() => {
+                                void (async () => {
+                                  setWorkingId(service._id);
+                                  setError("");
+                                  setSuccess("");
+
+                                  try {
+                                    await restoreService(service._id);
+                                    setSuccess("Service restored successfully.");
+                                    await loadServices();
+                                  } catch (requestError: any) {
+                                    setError(
+                                      requestError?.response?.data?.message ||
+                                        "Unable to restore this service right now.",
+                                    );
+                                  } finally {
+                                    setWorkingId("");
+                                  }
+                                })();
+                              }}
+                              className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50"
+                            >
+                              Restore
+                            </button>
+                          ) : (
                           <button
                             type="button"
                             onClick={() => beginEdit(service)}
@@ -660,52 +841,53 @@ function ServiceManagementPage() {
                           >
                             Edit
                           </button>
+                          )}
 
-                          <button
-                            type="button"
-                            disabled={isWorking}
-                            onClick={() =>
-                              void handleToggleStatus(service)
-                            }
-                            className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                          >
-                            {service.status === 'active'
-                              ? 'Archive'
-                              : 'Activate'}
-                          </button>
+                          {serviceFilter !== "deleted" && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={isWorking}
+                                onClick={() => void handleToggleStatus(service)}
+                                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                {service.status === "active"
+                                  ? "Archive"
+                                  : "Activate"}
+                              </button>
 
-                          <button
-                            type="button"
-                            disabled={isWorking}
-                            onClick={() =>
-                              void handleToggleVisibility(service)
-                            }
-                            className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                          >
-                            {service.isVisible ? 'Hide' : 'Show'}
-                          </button>
+                              <button
+                                type="button"
+                                disabled={isWorking}
+                                onClick={() => void handleToggleVisibility(service)}
+                                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                {service.isVisible ? "Hide" : "Show"}
+                              </button>
 
-                          <button
-                            type="button"
-                            disabled={isWorking}
-                            onClick={() => void handleDelete(service)}
-                            className="rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                          >
-                            Delete
-                          </button>
+                              <button
+                                type="button"
+                                disabled={isWorking}
+                                onClick={() => void handleDelete(service)}
+                                className="rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
 
                         <div className="mt-4 border-t border-gray-100 pt-3">
                           <span
                             className={`text-xs font-medium ${
                               service.isVisible
-                                ? 'text-green-600'
-                                : 'text-gray-500'
+                                ? "text-green-600"
+                                : "text-gray-500"
                             }`}
                           >
                             {service.isVisible
-                              ? 'Visible to customers'
-                              : 'Hidden from customers'}
+                              ? "Visible to customers"
+                              : "Hidden from customers"}
                           </span>
                         </div>
                       </article>
@@ -713,9 +895,7 @@ function ServiceManagementPage() {
                   })}
                 </div>
               )}
-                       </section>
-              </>
-            )}
+            </section>
           </>
         )}
       </Container>

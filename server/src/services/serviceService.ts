@@ -77,6 +77,7 @@ export async function getMyServices(
 
   return Service.find({
     businessId,
+    isDeleted: false,
   }).sort({
     name: 1,
   });
@@ -124,6 +125,7 @@ export async function getPublicServices(
     businessId,
     status: "active",
     isVisible: true,
+    isDeleted: false,
   }).sort({
     name: 1,
   });
@@ -224,9 +226,67 @@ export async function deleteService(
   ownerId: string,
   serviceId: string,
 ) {
-  const service = await Service.findById(
-    serviceId,
+  const service = await Service.findById(serviceId);
+
+  if (!service) {
+    throw new AppError("Service not found", 404);
+  }
+
+  await verifyBusinessOwnership(
+    service.businessId.toString(),
+    ownerId,
   );
+
+  if (service.isDeleted) {
+    throw new AppError("Service is already in the bin", 400);
+  }
+
+  service.isDeleted = true;
+  service.deletedAt = new Date();
+
+  await service.save();
+
+  return service;
+}
+
+export async function permanentlyDeleteExpiredServices() {
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() - 30);
+
+  const result = await Service.deleteMany({
+    isDeleted: true,
+    deletedAt: {
+      $lte: expiry,
+    },
+  });
+
+  return result.deletedCount;
+}
+
+export async function getDeletedServices(
+  ownerId: string,
+  businessId: string,
+) {
+  await verifyBusinessOwnership(
+    businessId,
+    ownerId,
+  );
+
+  await permanentlyDeleteExpiredServices();
+
+  return Service.find({
+    businessId,
+    isDeleted: true,
+  }).sort({
+    deletedAt: -1,
+  });
+}
+
+export async function restoreService(
+  ownerId: string,
+  serviceId: string,
+) {
+  const service = await Service.findById(serviceId);
 
   if (!service) {
     throw new AppError(
@@ -240,9 +300,17 @@ export async function deleteService(
     ownerId,
   );
 
-  await Service.findByIdAndDelete(
-    serviceId,
-  );
+  if (!service.isDeleted) {
+    throw new AppError(
+      "Service is not in the bin",
+      400,
+    );
+  }
 
-  return true;
+  service.isDeleted = false;
+  service.deletedAt = undefined;
+
+  await service.save();
+
+  return service;
 }
