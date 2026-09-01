@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Business from "../models/Business.js";
 import User from "../models/User.js";
+import Organization from "../models/Organization.js";
 import { AppError } from "../utils/AppError.js";
 import { getPagination } from "../utils/pagination.js";
 import { generateSlug } from "../utils/slug.js";
@@ -17,6 +18,24 @@ export async function createBusiness(
 ) {
   const slug = generateSlug(input.name);
 
+  if (input.organizationId) {
+    if (!mongoose.isValidObjectId(input.organizationId)) {
+      throw new AppError("Invalid organization ID", 400);
+    }
+
+    const organization = await Organization.findOne({
+      _id: input.organizationId,
+      ownerId,
+    });
+
+    if (!organization) {
+      throw new AppError(
+        "Organization not found or you do not have permission to use it",
+        404,
+      );
+    }
+  }
+
   const existingBusiness = await Business.findOne({
     slug,
   });
@@ -27,6 +46,7 @@ export async function createBusiness(
 
   const business = await Business.create({
     ownerId,
+    organizationId: input.organizationId,
     slug,
     name: input.name,
     description: input.description,
@@ -58,9 +78,11 @@ export async function createBusiness(
 }
 
 export async function getMyBusinesses(ownerId: string) {
-  return Business.find({ ownerId }).sort({
-    createdAt: -1,
-  });
+  return Business.find({ ownerId })
+    .populate("organizationId", "name slug")
+    .sort({
+      createdAt: -1,
+    });
 }
 
 export async function selectBusiness(businessId: string, ownerId: string) {

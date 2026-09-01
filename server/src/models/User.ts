@@ -22,6 +22,7 @@ export interface IUser extends Document {
   emailVerificationExpiresAt?: Date;
   refreshToken?: string;
   refreshTokenExpiresAt?: Date;
+  activeOrganizationId?: Types.ObjectId;
   activeBusinessId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -107,6 +108,13 @@ const userSchema = new Schema<IUser>(
     refreshTokenExpiresAt: {
       type: Date,
       select: false,
+    },
+
+    activeOrganizationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Organization",
+      default: undefined,
+      index: true,
     },
 
     activeBusinessId: {

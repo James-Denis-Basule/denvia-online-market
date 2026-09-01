@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 import type { FormEvent } from "react";
@@ -96,7 +96,7 @@ function ServiceManagementPage() {
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  async function loadServices() {
+  const loadServices = useCallback(async () => {
     if (!activeBusiness?._id) {
       setServices([]);
       setLoading(false);
@@ -120,11 +120,17 @@ function ServiceManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeBusiness]);
 
   useEffect(() => {
-    void loadServices();
-  }, [activeBusiness?._id]);
+    const timer = window.setTimeout(() => {
+      void loadServices();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loadServices]);
 
   function updateForm<K extends keyof ServiceForm>(
     field: K,
@@ -185,9 +191,9 @@ function ServiceManagementPage() {
 
       resetForm();
       await loadServices();
-    } catch (requestError: any) {
+    } catch (requestError: unknown) {
       setError(
-        requestError?.response?.data?.message ||
+        (requestError instanceof Error ? requestError.message : "") ||
           "Unable to save this service right now.",
       );
     } finally {
@@ -219,9 +225,9 @@ function ServiceManagementPage() {
         "Service moved to the Bin. It will be permanently deleted after 30 days.",
       );
       await loadServices();
-    } catch (requestError: any) {
+    } catch (requestError: unknown) {
       setError(
-        requestError?.response?.data?.message ||
+        (requestError instanceof Error ? requestError.message : "") ||
           "Unable to delete this service right now.",
       );
     } finally {
@@ -822,9 +828,11 @@ function ServiceManagementPage() {
                                       "Service restored successfully.",
                                     );
                                     await loadServices();
-                                  } catch (requestError: any) {
+                                  } catch (requestError: unknown) {
                                     setError(
-                                      requestError?.response?.data?.message ||
+                                      (requestError instanceof Error
+                                        ? requestError.message
+                                        : "") ||
                                         "Unable to restore this service right now.",
                                     );
                                   } finally {

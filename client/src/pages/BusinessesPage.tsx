@@ -13,7 +13,7 @@ import {
 } from "../services/discoveryService";
 
 function BusinessesPage() {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const {
     businesses: myBusinesses,
@@ -31,8 +31,13 @@ function BusinessesPage() {
 
   const hasBusinesses = myBusinesses.length > 0;
 
+  const isBusinessAccount = user?.accountTypes?.includes("business");
+
   const showBusinessOnboarding =
-    isAuthenticated && !businessesLoading && !hasBusinesses;
+    isAuthenticated &&
+    isBusinessAccount &&
+    !businessesLoading &&
+    !hasBusinesses;
 
   useEffect(() => {
     let mounted = true;
@@ -107,7 +112,9 @@ function BusinessesPage() {
     });
   }, [discoverableBusinesses, search]);
 
-  async function handleBusinessSwitch(event: ChangeEvent<HTMLSelectElement>) {
+  async function handleBusinessSwitch(
+    event: ChangeEvent<HTMLSelectElement>,
+  ) {
     const businessId = event.target.value;
 
     if (!businessId || businessId === activeBusiness?._id) {
@@ -117,6 +124,7 @@ function BusinessesPage() {
     try {
       setSwitchError("");
       setSwitchingBusiness(true);
+
       await selectActiveBusiness(businessId);
     } catch {
       setSwitchError("Unable to switch businesses right now.");
@@ -130,12 +138,15 @@ function BusinessesPage() {
   ) {
     const value = (business as Record<string, unknown>).slogan;
 
-    return typeof value === "string" && value.trim() ? value.trim() : undefined;
+    return typeof value === "string" && value.trim()
+      ? value.trim()
+      : undefined;
   }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-50 py-8 sm:py-10">
       <div className="pointer-events-none absolute -left-32 top-20 h-72 w-72 animate-[pulse_7s_ease-in-out_infinite] rounded-full bg-blue-200/30 blur-3xl" />
+
       <div className="pointer-events-none absolute -right-32 top-96 h-80 w-80 rounded-full bg-indigo-200/20 blur-3xl" />
 
       <Container>
@@ -174,7 +185,9 @@ function BusinessesPage() {
 
                       <p className="mt-2 text-sm text-blue-100">
                         {myBusinesses.length}{" "}
-                        {myBusinesses.length === 1 ? "business" : "businesses"}{" "}
+                        {myBusinesses.length === 1
+                          ? "business"
+                          : "businesses"}{" "}
                         owned by you on Denvia.
                       </p>
                     </div>
@@ -257,25 +270,65 @@ function BusinessesPage() {
         {showBusinessOnboarding && (
           <section className="mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white shadow-2xl shadow-blue-200/40">
             <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
-                Your account is ready
-              </p>
+              <div className="max-w-3xl">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
+                  Business setup
+                </p>
 
-              <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-                Create your first business
-              </h1>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+                  How do you want to manage your business?
+                </h1>
 
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-50 sm:text-base">
-                Create a business or organisation to unlock your business
-                dashboard and start building your presence on Denvia.
-              </p>
+                <p className="mt-3 text-sm leading-6 text-blue-50 sm:text-base">
+                  Choose the setup that fits how you plan to operate on Denvia.
+                  You can change your structure later.
+                </p>
+              </div>
 
-              <Link
-                to="/businesses/create"
-                className="mt-6 inline-flex rounded-xl bg-white px-6 py-3 text-sm font-bold text-blue-700 shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-50"
-              >
-                Create your business
-              </Link>
+              <div className="mt-8 grid gap-5 md:grid-cols-2">
+                <Link
+                  to="/businesses/create"
+                  className="group rounded-2xl border border-white/20 bg-white p-6 text-gray-900 shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-xl">
+                    🏪
+                  </div>
+
+                  <h2 className="mt-5 text-xl font-bold">
+                    Just one business
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    Manage a single business independently.
+                  </p>
+
+                  <span className="mt-5 inline-flex text-sm font-bold text-blue-600 group-hover:text-blue-700">
+                    Create one business →
+                  </span>
+                </Link>
+
+                <Link
+                  to="/organizations/create"
+                  className="group rounded-2xl border border-white/20 bg-white/10 p-6 shadow-lg ring-1 ring-white/20 transition hover:-translate-y-1 hover:bg-white/15 hover:shadow-xl"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 text-xl ring-1 ring-white/20">
+                    🏢
+                  </div>
+
+                  <h2 className="mt-5 text-xl font-bold">
+                    Multiple businesses
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-blue-50">
+                    Create an organization to manage multiple businesses
+                    together.
+                  </p>
+
+                  <span className="mt-5 inline-flex text-sm font-bold text-white group-hover:text-blue-100">
+                    Create an organization →
+                  </span>
+                </Link>
+              </div>
             </div>
           </section>
         )}
@@ -354,8 +407,8 @@ function BusinessesPage() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Explore businesses on Denvia. Your own businesses are not shown
-                here.
+                Explore businesses on Denvia. Your own businesses are not
+                shown here.
               </p>
             </div>
 

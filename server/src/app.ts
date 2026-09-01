@@ -13,6 +13,7 @@ import {
   requestLogger,
 } from "./middleware/securityMiddleware.js";
 import businessRoutes from "./routes/businessRoutes.js";
+import organizationRoutes from "./routes/organizationRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import serviceRoutes from "./routes/serviceRoutes.js";
@@ -60,6 +61,7 @@ app.use(createRateLimiter({ maxRequests: 120, windowMs: 60_000 }));
 app.use("/api/system", systemRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/businesses", businessRoutes);
+app.use("/api/organizations", organizationRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/services", serviceRoutes);

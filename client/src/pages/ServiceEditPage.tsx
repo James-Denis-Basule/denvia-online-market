@@ -112,9 +112,9 @@ function ServiceEditPage() {
           status: service.status,
           isVisible: service.isVisible,
         });
-      } catch (requestError: any) {
+      } catch (requestError: unknown) {
         setError(
-          requestError?.response?.data?.message ||
+          (requestError instanceof Error ? requestError.message : "") ||
             "Unable to load this service right now.",
         );
       } finally {
@@ -156,9 +156,9 @@ function ServiceEditPage() {
     try {
       await updateService(serviceId, payload);
       navigate("/services/manage");
-    } catch (requestError: any) {
+    } catch (requestError: unknown) {
       setError(
-        requestError?.response?.data?.message ||
+        (requestError instanceof Error ? requestError.message : "") ||
           "Unable to update this service right now.",
       );
     } finally {

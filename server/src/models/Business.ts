@@ -38,6 +38,9 @@ export interface SocialLinks {
 }
 
 export interface IBusiness extends Document {
+  /** Optional parent organization. Independent businesses may leave this unset. */
+  organizationId?: Types.ObjectId;
+
   ownerId: Types.ObjectId;
 
   name: string;
@@ -206,6 +209,13 @@ const socialLinksSchema =
 
 const businessSchema = new Schema<IBusiness>(
   {
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Organization",
+      default: undefined,
+      index: true,
+    },
+
     ownerId: {
       type: Schema.Types.ObjectId,
       ref: "User",

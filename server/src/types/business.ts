@@ -41,6 +41,10 @@ const socialLinksSchema = z
   .optional();
 
 export const createBusinessSchema = z.object({
+  organizationId: z
+    .string()
+    .trim()
+    .optional(),
   name: z
     .string()
     .trim()

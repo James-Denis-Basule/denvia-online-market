@@ -86,9 +86,9 @@ function ServiceCreatePage() {
     try {
       await createService(payload);
       navigate('/services/manage');
-    } catch (requestError: any) {
+    } catch (requestError: unknown) {
       setError(
-        requestError?.response?.data?.message ||
+        (requestError instanceof Error ? requestError.message : "") ||
           'Unable to create this service right now.',
       );
     } finally {
