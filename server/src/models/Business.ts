@@ -1,13 +1,6 @@
-import mongoose, {
-  Document,
-  Schema,
-  Types,
-} from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
-export type BusinessStatus =
-  | "active"
-  | "suspended"
-  | "pending";
+export type BusinessStatus = "active" | "suspended" | "pending";
 
 export type DayOfWeek =
   | "monday"
@@ -24,10 +17,7 @@ export interface OperatingHoursDay {
   close?: string;
 }
 
-export type OperatingHours = Record<
-  DayOfWeek,
-  OperatingHoursDay
->;
+export type OperatingHours = Record<DayOfWeek, OperatingHoursDay>;
 
 export interface SocialLinks {
   facebook?: string;
@@ -80,132 +70,129 @@ export interface IBusiness extends Document {
   updatedAt: Date;
 }
 
-const operatingHoursDaySchema =
-  new Schema<OperatingHoursDay>(
-    {
-      isOpen: {
-        type: Boolean,
-        default: true,
-      },
-
-      open: {
-        type: String,
-        trim: true,
-        match: /^([01]\d|2[0-3]):[0-5]\d$/,
-      },
-
-      close: {
-        type: String,
-        trim: true,
-        match: /^([01]\d|2[0-3]):[0-5]\d$/,
-      },
+const operatingHoursDaySchema = new Schema<OperatingHoursDay>(
+  {
+    isOpen: {
+      type: Boolean,
+      default: true,
     },
-    {
-      _id: false,
+
+    open: {
+      type: String,
+      trim: true,
+      match: /^([01]\d|2[0-3]):[0-5]\d$/,
     },
-  );
 
-const operatingHoursSchema =
-  new Schema<OperatingHours>(
-    {
-      monday: {
-        type: operatingHoursDaySchema,
-        default: () => ({
-          isOpen: true,
-          open: "08:00",
-          close: "17:00",
-        }),
-      },
-
-      tuesday: {
-        type: operatingHoursDaySchema,
-        default: () => ({
-          isOpen: true,
-          open: "08:00",
-          close: "17:00",
-        }),
-      },
-
-      wednesday: {
-        type: operatingHoursDaySchema,
-        default: () => ({
-          isOpen: true,
-          open: "08:00",
-          close: "17:00",
-        }),
-      },
-
-      thursday: {
-        type: operatingHoursDaySchema,
-        default: () => ({
-          isOpen: true,
-          open: "08:00",
-          close: "17:00",
-        }),
-      },
-
-      friday: {
-        type: operatingHoursDaySchema,
-        default: () => ({
-          isOpen: true,
-          open: "08:00",
-          close: "17:00",
-        }),
-      },
-
-      saturday: {
-        type: operatingHoursDaySchema,
-        default: () => ({
-          isOpen: true,
-          open: "09:00",
-          close: "15:00",
-        }),
-      },
-
-      sunday: {
-        type: operatingHoursDaySchema,
-        default: () => ({
-          isOpen: false,
-        }),
-      },
+    close: {
+      type: String,
+      trim: true,
+      match: /^([01]\d|2[0-3]):[0-5]\d$/,
     },
-    {
-      _id: false,
+  },
+  {
+    _id: false,
+  },
+);
+
+const operatingHoursSchema = new Schema<OperatingHours>(
+  {
+    monday: {
+      type: operatingHoursDaySchema,
+      default: () => ({
+        isOpen: true,
+        open: "08:00",
+        close: "17:00",
+      }),
     },
-  );
 
-const socialLinksSchema =
-  new Schema<SocialLinks>(
-    {
-      facebook: {
-        type: String,
-        trim: true,
-      },
-
-      instagram: {
-        type: String,
-        trim: true,
-      },
-
-      linkedin: {
-        type: String,
-        trim: true,
-      },
-
-      tiktok: {
-        type: String,
-        trim: true,
-      },
-
-      x: {
-        type: String,
-        trim: true,
-      },
+    tuesday: {
+      type: operatingHoursDaySchema,
+      default: () => ({
+        isOpen: true,
+        open: "08:00",
+        close: "17:00",
+      }),
     },
-    {
-      _id: false,
+
+    wednesday: {
+      type: operatingHoursDaySchema,
+      default: () => ({
+        isOpen: true,
+        open: "08:00",
+        close: "17:00",
+      }),
     },
-  );
+
+    thursday: {
+      type: operatingHoursDaySchema,
+      default: () => ({
+        isOpen: true,
+        open: "08:00",
+        close: "17:00",
+      }),
+    },
+
+    friday: {
+      type: operatingHoursDaySchema,
+      default: () => ({
+        isOpen: true,
+        open: "08:00",
+        close: "17:00",
+      }),
+    },
+
+    saturday: {
+      type: operatingHoursDaySchema,
+      default: () => ({
+        isOpen: true,
+        open: "09:00",
+        close: "15:00",
+      }),
+    },
+
+    sunday: {
+      type: operatingHoursDaySchema,
+      default: () => ({
+        isOpen: false,
+      }),
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
+const socialLinksSchema = new Schema<SocialLinks>(
+  {
+    facebook: {
+      type: String,
+      trim: true,
+    },
+
+    instagram: {
+      type: String,
+      trim: true,
+    },
+
+    linkedin: {
+      type: String,
+      trim: true,
+    },
+
+    tiktok: {
+      type: String,
+      trim: true,
+    },
+
+    x: {
+      type: String,
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+  },
+);
 
 const businessSchema = new Schema<IBusiness>(
   {
@@ -308,6 +295,7 @@ const businessSchema = new Schema<IBusiness>(
 
     coverImage: {
       type: String,
+      default: "",
       trim: true,
     },
 
@@ -324,11 +312,7 @@ const businessSchema = new Schema<IBusiness>(
 
     status: {
       type: String,
-      enum: [
-        "active",
-        "suspended",
-        "pending",
-      ],
+      enum: ["active", "suspended", "pending"],
       default: "active",
       index: true,
     },
@@ -338,9 +322,6 @@ const businessSchema = new Schema<IBusiness>(
   },
 );
 
-const Business = mongoose.model<IBusiness>(
-  "Business",
-  businessSchema,
-);
+const Business = mongoose.model<IBusiness>("Business", businessSchema);
 
 export default Business;

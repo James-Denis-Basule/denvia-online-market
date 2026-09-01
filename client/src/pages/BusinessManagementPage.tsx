@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import Container from '../components/layout/Container';
-import LoadingState from '../components/ui/LoadingState';
-import { useBusiness } from '../context/BusinessContext';
-import { deleteBusiness } from '../services/businessService';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import Container from "../components/layout/Container";
+import LoadingState from "../components/ui/LoadingState";
+import { useBusiness } from "../context/BusinessContext";
+import { deleteBusiness } from "../services/businessService";
 
 function BusinessManagementPage() {
   const {
@@ -14,18 +14,18 @@ function BusinessManagementPage() {
     refreshBusinesses,
   } = useBusiness();
 
-  const [workingId, setWorkingId] = useState('');
-  const [error, setError] = useState('');
+  const [workingId, setWorkingId] = useState("");
+  const [error, setError] = useState("");
 
   async function handleSelect(businessId: string) {
     try {
-      setError('');
+      setError("");
       setWorkingId(businessId);
       await selectActiveBusiness(businessId);
     } catch {
-      setError('Unable to switch businesses right now.');
+      setError("Unable to switch businesses right now.");
     } finally {
-      setWorkingId('');
+      setWorkingId("");
     }
   }
 
@@ -39,14 +39,14 @@ function BusinessManagementPage() {
     }
 
     try {
-      setError('');
+      setError("");
       setWorkingId(businessId);
       await deleteBusiness(businessId);
       await refreshBusinesses();
     } catch {
-      setError('Unable to delete this business right now.');
+      setError("Unable to delete this business right now.");
     } finally {
-      setWorkingId('');
+      setWorkingId("");
     }
   }
 
@@ -67,8 +67,8 @@ function BusinessManagementPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
-              Manage your businesses, switch between them, open dashboards,
-              and create new business profiles from one place.
+              Manage your businesses, switch between them, open dashboards, and
+              create new business profiles from one place.
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -80,8 +80,15 @@ function BusinessManagementPage() {
               </Link>
 
               <Link
+                to="/organizations/create"
+                className="rounded-xl bg-white px-5 py-3 text-center text-sm font-semibold text-blue-700 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                + Create organization
+              </Link>
+              
+              <Link
                 to="/businesses"
-                className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/20"
+                className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-center text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-xl hover:bg-white/20"
               >
                 Discover businesses
               </Link>
@@ -134,8 +141,8 @@ function BusinessManagementPage() {
               </div>
 
               <span className="text-sm font-medium text-gray-500">
-                {businesses.length}{' '}
-                {businesses.length === 1 ? 'business' : 'businesses'}
+                {businesses.length}{" "}
+                {businesses.length === 1 ? "business" : "businesses"}
               </span>
             </div>
 
@@ -149,8 +156,8 @@ function BusinessManagementPage() {
                     key={business._id}
                     className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                       isActive
-                        ? 'border-blue-300 ring-2 ring-blue-100'
-                        : 'border-gray-100'
+                        ? "border-blue-300 ring-2 ring-blue-100"
+                        : "border-gray-100"
                     }`}
                   >
                     <div className="h-28 bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600">
@@ -208,14 +215,14 @@ function BusinessManagementPage() {
                             onClick={() => void handleSelect(business._id)}
                             className="rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {isWorking ? 'Switching...' : 'Make active'}
+                            {isWorking ? "Switching..." : "Make active"}
                           </button>
                         )}
 
                         <Link
                           to="/dashboard"
                           className={`rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100 ${
-                            isActive ? 'col-span-2' : ''
+                            isActive ? "col-span-2" : ""
                           }`}
                         >
                           Open dashboard

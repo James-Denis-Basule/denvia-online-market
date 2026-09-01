@@ -3,10 +3,15 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 
 import Card from "../components/ui/Card";
+
 import Container from "../components/layout/Container";
+
 import LoadingState from "../components/ui/LoadingState";
+
 import { useAuth } from "../hooks/useAuth";
+
 import { useBusiness } from "../context/BusinessContext";
+
 import {
   getDiscovery,
   type DiscoveryBusiness,
@@ -28,6 +33,10 @@ function BusinessesPage() {
   const [discoveryError, setDiscoveryError] = useState("");
   const [switchingBusiness, setSwitchingBusiness] = useState(false);
   const [switchError, setSwitchError] = useState("");
+
+  const [showOrganizationReminder, setShowOrganizationReminder] = useState(
+    () => localStorage.getItem("organizationReminderDismissed") !== "true",
+  );
 
   const hasBusinesses = myBusinesses.length > 0;
 
@@ -84,7 +93,7 @@ function BusinessesPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [businessesLoading]);
 
   const myBusinessIds = useMemo(
     () => new Set(myBusinesses.map((business) => business._id)),
@@ -112,9 +121,7 @@ function BusinessesPage() {
     });
   }, [discoverableBusinesses, search]);
 
-  async function handleBusinessSwitch(
-    event: ChangeEvent<HTMLSelectElement>,
-  ) {
+  async function handleBusinessSwitch(event: ChangeEvent<HTMLSelectElement>) {
     const businessId = event.target.value;
 
     if (!businessId || businessId === activeBusiness?._id) {
@@ -133,14 +140,17 @@ function BusinessesPage() {
     }
   }
 
+  function dismissOrganizationReminder() {
+    localStorage.setItem("organizationReminderDismissed", "true");
+    setShowOrganizationReminder(false);
+  }
+
   function getSlogan(
     business: DiscoveryBusiness | (typeof myBusinesses)[number],
   ) {
     const value = (business as Record<string, unknown>).slogan;
 
-    return typeof value === "string" && value.trim()
-      ? value.trim()
-      : undefined;
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
   }
 
   return (
@@ -150,6 +160,56 @@ function BusinessesPage() {
       <div className="pointer-events-none absolute -right-32 top-96 h-80 w-80 rounded-full bg-indigo-200/20 blur-3xl" />
 
       <Container>
+        {isAuthenticated &&
+          !businessesLoading &&
+          hasBusinesses &&
+          showOrganizationReminder && (
+            <section className="relative mb-6 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+              <button
+                type="button"
+                onClick={dismissOrganizationReminder}
+                aria-label="Close organization reminder"
+                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+              >
+                <span className="text-xl leading-none">×</span>
+              </button>
+
+              <div className="flex flex-col gap-4 pr-8 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                    Organization
+                  </p>
+
+                  <h2 className="mt-1 text-lg font-bold text-gray-900">
+                    Manage your businesses together
+                  </h2>
+
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+                    Create an organization and bring your businesses together
+                    under one management structure.
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 gap-2 mt-8 sm:items-end">
+                  <Link
+                    to="/organizations/create"
+                    className="rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    + Create organization
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={dismissOrganizationReminder}
+                    className="text-sm font-semibold bg-gray-200 text-gray-500 px-5 py-2.5 rounded-xl transition hover:text-gray-700 hover:bg-gray-300"
+                  >
+                    Remind me later
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
         {isAuthenticated && !businessesLoading && hasBusinesses && (
           <section className="mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white shadow-2xl shadow-blue-200/40">
             <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14">
@@ -185,9 +245,7 @@ function BusinessesPage() {
 
                       <p className="mt-2 text-sm text-blue-100">
                         {myBusinesses.length}{" "}
-                        {myBusinesses.length === 1
-                          ? "business"
-                          : "businesses"}{" "}
+                        {myBusinesses.length === 1 ? "business" : "businesses"}{" "}
                         owned by you on Denvia.
                       </p>
                     </div>
@@ -294,9 +352,7 @@ function BusinessesPage() {
                     🏪
                   </div>
 
-                  <h2 className="mt-5 text-xl font-bold">
-                    Just one business
-                  </h2>
+                  <h2 className="mt-5 text-xl font-bold">Just one business</h2>
 
                   <p className="mt-2 text-sm leading-6 text-gray-600">
                     Manage a single business independently.
@@ -333,36 +389,36 @@ function BusinessesPage() {
           </section>
         )}
 
-        <section className="overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white shadow-2xl shadow-blue-200/40">
-          <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <section className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm">
+          <div className="px-6 py-7 sm:px-8 sm:py-8">
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
                     Denvia Online Market
                   </p>
 
-                  <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
                     Discover Businesses
                   </h2>
 
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50 sm:text-base">
+                  <p className="mt-1.5 max-w-2xl text-sm leading-5 text-gray-500">
                     Discover businesses, stores and service providers from
                     across Denvia.
                   </p>
                 </div>
 
                 {!loading && !discoveryError && (
-                  <p className="shrink-0 text-sm font-semibold text-blue-100">
+                  <div className="shrink-0 rounded-full bg-gray-100 px-3.5 py-1.5 text-sm font-semibold text-gray-700">
                     {filteredBusinesses.length}{" "}
                     {filteredBusinesses.length === 1
                       ? "business"
                       : "businesses"}
-                  </p>
+                  </div>
                 )}
               </div>
 
-              <div>
+              <div className="relative">
                 <label htmlFor="business-search" className="sr-only">
                   Search businesses
                 </label>
@@ -373,7 +429,7 @@ function BusinessesPage() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search businesses, categories..."
-                  className="w-full rounded-xl border border-white/20 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-white focus:ring-4 focus:ring-white/20"
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
                 />
               </div>
             </div>
@@ -407,8 +463,8 @@ function BusinessesPage() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Explore businesses on Denvia. Your own businesses are not
-                shown here.
+                Explore businesses on Denvia. Your own businesses are not shown
+                here.
               </p>
             </div>
 

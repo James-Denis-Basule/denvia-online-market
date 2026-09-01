@@ -20,9 +20,24 @@ export async function createOrganization(
     throw new AppError("You already have an organization with this name", 409);
   }
 
+  const baseSlug = input.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  let slug = baseSlug || `organization-${Date.now()}`;
+
+  const existingSlug = await Organization.findOne({ slug });
+
+  if (existingSlug) {
+    slug = `${baseSlug}-${Date.now()}`;
+  }
+
   return Organization.create({
     ownerId,
     name: input.name,
+    slug,
     description: input.description,
   });
 }

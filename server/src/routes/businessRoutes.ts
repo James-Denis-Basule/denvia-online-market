@@ -17,7 +17,7 @@ import {
 import { authenticate } from "../middleware/authMiddleware.js";
 
 import { getPublicServicesController } from "../controllers/serviceController.js";
-// import { uploadBusinessImage } from "../middleware/uploadMiddleware.js";
+import { uploadBusinessImage } from "../middleware/uploadMiddleware.js";
 
 const router = Router();
 
@@ -73,7 +73,7 @@ router.patch("/my/:id", authenticate, updateBusinessController);
 router.post(
   "/:id/image",
   authenticate,
-  // uploadBusinessImage.single("image"),
+  uploadBusinessImage.single("image"),
   uploadBusinessImageController,
 );
 

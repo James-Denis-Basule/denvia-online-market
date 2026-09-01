@@ -1,103 +1,222 @@
-import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, type FormEvent, type DragEvent } from "react";
+import {
+  getCountries,
+  getCountryCallingCode,
+  type CountryCode,
+} from "libphonenumber-js";
+import { Link, useNavigate } from "react-router-dom";
+import Container from "../components/layout/Container";
+import {
+  createBusiness,
+  uploadBusinessImage,
+} from "../services/businessService";
+import { useBusiness } from "../context/BusinessContext";
 
-import Container from '../components/layout/Container';
-import { createBusiness } from '../services/businessService';
+const countries = getCountries().map((code) => ({
+  code: code as CountryCode,
+  callingCode: getCountryCallingCode(code),
+}));
+
+const categories = [
+  "Agriculture",
+  "Automotive",
+  "Beauty & Personal Care",
+  "Clothing & Fashion",
+  "Construction",
+  "Education",
+  "Electronics",
+  "Entertainment",
+  "Finance",
+  "Food & Restaurant",
+  "Health & Wellness",
+  "Home & Furniture",
+  "Hotels & Travel",
+  "Professional Services",
+  "Real Estate",
+  "Retail",
+  "Technology",
+  "Telecommunications",
+  "Transport & Logistics",
+  "Other",
+];
 
 function BusinessCreatePage() {
   const navigate = useNavigate();
+  const [country, setCountry] = useState<CountryCode>("UG");
+  const [logoPreview, setLogoPreview] = useState("");
+  const [coverPreview, setCoverPreview] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const { refreshBusinesses } = useBusiness();
 
   const [form, setForm] = useState({
-    name: '',
-    slogan: '',
-    description: '',
-    category: '',
-    phone: '',
-    email: '',
-    address: '',
-    city: '',
-    country: 'Uganda',
-    logo: '',
-    coverImage: '',
+    name: "",
+    slogan: "",
+    description: "",
+    category: "",
+    phone: "",
+    email: "",
+    address: "",
+    city: "",
+    country: "Uganda",
+    logo: "",
+    coverImage: "",
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+
+  const countryCode = getCountryCallingCode(country);
 
   function handleChange(
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    event: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) {
     const { name, value } = event.target;
 
+    if (name === "phone") {
+      let phone = value.replace(/[^\d]/g, "");
+      if (phone.startsWith("0")) phone = phone.slice(1);
+      setForm((current) => ({ ...current, phone }));
+      return;
+    }
+
+    setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function handleCountryChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const value = event.target.value as CountryCode;
+    setCountry(value);
+
+    const countryName =
+      new Intl.DisplayNames(["en"], { type: "region" }).of(value) ?? value;
+
+    setForm((current) => ({ ...current, country: countryName }));
+  }
+
+  function handleFile(file: File, type: "logo" | "coverImage") {
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file.");
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+
+    if (type === "logo") setLogoPreview(preview);
+    else setCoverPreview(preview);
+
+    if (type === "logo") setLogoFile(file);
+    else setCoverFile(file);
+
     setForm((current) => ({
       ...current,
-      [name]: value,
+      [type]: preview,
     }));
+  }
+
+  function handleDrop(
+    event: DragEvent<HTMLDivElement>,
+    type: "logo" | "coverImage",
+  ) {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) handleFile(file, type);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!form.name.trim()) {
-      setError('Business name is required.');
+      setError("Business name is required.");
       return;
     }
 
     try {
       setSubmitting(true);
-      setError('');
+      setError("");
 
       const response = await createBusiness({
         name: form.name.trim(),
         slogan: form.slogan.trim() || undefined,
         description: form.description.trim() || undefined,
-        category: form.category.trim() || undefined,
-        phone: form.phone.trim() || undefined,
+        category: form.category || undefined,
+        phone: form.phone ? `${countryCode} ${form.phone}` : undefined,
         email: form.email.trim() || undefined,
         address: form.address.trim() || undefined,
         city: form.city.trim() || undefined,
-        country: form.country.trim() || undefined,
-        logo: form.logo.trim() || undefined,
-        coverImage: form.coverImage.trim() || undefined,
+        country: form.country,
+        logo: form.logo.startsWith("http") ? form.logo : undefined,
+        coverImage: form.coverImage.startsWith("http")
+          ? form.coverImage
+          : undefined,
       });
 
       if (!response.success) {
-        throw new Error(response.message || 'Unable to create business.');
+        throw new Error(response.message || "Unable to create business.");
       }
 
-      navigate('/businesses/manage');
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to create business right now.',
-      );
+      const businessId = response.data.business._id;
+
+      if (logoFile) {
+        await uploadBusinessImage(businessId, logoFile, "logo");
+      }
+
+      if (coverFile) {
+        await uploadBusinessImage(businessId, coverFile, "cover");
+      }
+
+      await refreshBusinesses();
+
+      navigate("/businesses/manage");
+
+      if (logoFile) {
+        uploadBusinessImage(businessId, logoFile, "logo").catch((error) => {
+          console.error("Logo upload failed:", error);
+        });
+      }
+
+      if (coverFile) {
+        uploadBusinessImage(businessId, coverFile, "cover").catch((error) => {
+          console.error("Cover image upload failed:", error);
+        });
+      }
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: {
+          data?: {
+            message?: string;
+          };
+        };
+      };
+
+      const message =
+        axiosError.response?.data?.message ||
+        (err instanceof Error ? err.message : "") ||
+        "Unable to create business right now.";
+
+      setError(message);
     } finally {
       setSubmitting(false);
     }
   }
 
+  const input =
+    "mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50";
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-50 py-8 sm:py-10">
-      <div className="pointer-events-none absolute -left-32 top-20 h-72 w-72 rounded-full bg-blue-200/30 blur-3xl" />
-      <div className="pointer-events-none absolute -right-32 top-64 h-80 w-80 rounded-full bg-indigo-200/30 blur-3xl" />
-
+    <main className="min-h-screen bg-slate-50 py-8 sm:py-10">
       <Container>
-        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 px-6 py-10 text-white shadow-2xl shadow-blue-200/40 sm:px-10 sm:py-12">
-          <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
-              DOM business setup
-            </p>
-
-            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-              Create your business
-            </h1>
-
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
-              Create your business profile and establish how customers will
-              see your brand on DOM.
-            </p>
-          </div>
+        <section className="rounded-[2rem] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 px-6 py-10 text-white shadow-2xl sm:px-10">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
+            DOM business setup
+          </p>
+          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">
+            Create your business
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm text-blue-100 sm:text-base">
+            Build your business profile and show customers your brand.
+          </p>
         </section>
 
         <form
@@ -112,221 +231,226 @@ function BusinessCreatePage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
-              <label
-                htmlFor="name"
-                className="text-sm font-semibold text-gray-700"
-              >
+              <label className="text-sm font-semibold text-gray-700">
                 Business name *
               </label>
               <input
-                id="name"
                 name="name"
                 value={form.name}
                 onChange={handleChange}
                 required
                 placeholder="e.g. Basule Electronics"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                className={input}
               />
             </div>
 
             <div>
-              <label
-                htmlFor="slogan"
-                className="text-sm font-semibold text-gray-700"
-              >
+              <label className="text-sm font-semibold text-gray-700">
                 Brand slogan
               </label>
               <input
-                id="slogan"
                 name="slogan"
                 value={form.slogan}
                 onChange={handleChange}
-                placeholder="e.g. Technology made simple"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                placeholder="Technology made simple"
+                className={input}
               />
             </div>
 
             <div>
-              <label
-                htmlFor="category"
-                className="text-sm font-semibold text-gray-700"
-              >
+              <label className="text-sm font-semibold text-gray-700">
                 Category
               </label>
-              <input
-                id="category"
+              <select
                 name="category"
                 value={form.category}
                 onChange={handleChange}
-                placeholder="e.g. Electronics"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
-              />
+                className={input}
+              >
+                <option value="">Select category</option>
+                {categories.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label
-                htmlFor="phone"
-                className="text-sm font-semibold text-gray-700"
+              <label className="text-sm font-semibold text-gray-700">
+                Country
+              </label>
+              <select
+                value={country}
+                onChange={handleCountryChange}
+                className={input}
               >
+                {countries.map(({ code, callingCode }) => {
+                  const name =
+                    new Intl.DisplayNames(["en"], { type: "region" }).of(
+                      code,
+                    ) ?? code;
+
+                  return (
+                    <option key={code} value={code}>
+                      {name} (+{callingCode})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700">
                 Phone
               </label>
-              <input
-                id="phone"
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                placeholder="+256..."
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
-              />
+              <div className="mt-2 flex">
+                <span className="flex items-center rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 px-4 text-sm font-semibold text-gray-700">
+                  {countryCode}
+                </span>
+                <input
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  inputMode="numeric"
+                  placeholder="772123456"
+                  className="w-full rounded-r-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
             </div>
 
             <div>
-              <label
-                htmlFor="email"
-                className="text-sm font-semibold text-gray-700"
-              >
+              <label className="text-sm font-semibold text-gray-700">
                 Business email
               </label>
               <input
-                id="email"
                 name="email"
                 type="email"
                 value={form.email}
                 onChange={handleChange}
                 placeholder="business@example.com"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                className={input}
               />
             </div>
 
             <div>
-              <label
-                htmlFor="city"
-                className="text-sm font-semibold text-gray-700"
-              >
+              <label className="text-sm font-semibold text-gray-700">
                 City
               </label>
               <input
-                id="city"
                 name="city"
                 value={form.city}
                 onChange={handleChange}
                 placeholder="Kampala"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                className={input}
               />
             </div>
 
             <div>
-              <label
-                htmlFor="address"
-                className="text-sm font-semibold text-gray-700"
-              >
+              <label className="text-sm font-semibold text-gray-700">
                 Address
               </label>
               <input
-                id="address"
                 name="address"
                 value={form.address}
                 onChange={handleChange}
                 placeholder="Street, building or area"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="country"
-                className="text-sm font-semibold text-gray-700"
-              >
-                Country
-              </label>
-              <input
-                id="country"
-                name="country"
-                value={form.country}
-                onChange={handleChange}
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                className={input}
               />
             </div>
           </div>
 
           <div className="mt-6">
-            <label
-              htmlFor="description"
-              className="text-sm font-semibold text-gray-700"
-            >
+            <label className="text-sm font-semibold text-gray-700">
               Business description
             </label>
             <textarea
-              id="description"
               name="description"
               value={form.description}
               onChange={handleChange}
               rows={5}
               placeholder="Tell customers what your business offers..."
-              className="mt-2 w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+              className={`${input} resize-y`}
             />
           </div>
 
           <div className="mt-8 border-t border-gray-100 pt-8">
-            <h2 className="text-lg font-bold text-gray-900">
-              Brand images
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900">Brand images</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Add your business logo and cover image. These can be managed
-              later from business management.
+              Upload, drag and drop, or use an image URL.
             </p>
 
             <div className="mt-5 grid gap-6 lg:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="logo"
-                  className="text-sm font-semibold text-gray-700"
-                >
-                  Logo URL
-                </label>
-                <input
-                  id="logo"
-                  name="logo"
-                  value={form.logo}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
-                />
-              </div>
+              {(
+                [
+                  ["logo", "Logo", logoPreview],
+                  ["coverImage", "Cover image", coverPreview],
+                ] as const
+              ).map(([type, title, preview]) => (
+                <div key={type}>
+                  <label className="text-sm font-semibold text-gray-700">
+                    {title}
+                  </label>
 
-              <div>
-                <label
-                  htmlFor="coverImage"
-                  className="text-sm font-semibold text-gray-700"
-                >
-                  Cover image URL
-                </label>
-                <input
-                  id="coverImage"
-                  name="coverImage"
-                  value={form.coverImage}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
-                />
-              </div>
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDrop(e, type)}
+                    className="mt-2 rounded-2xl border-2 border-dashed border-gray-300 p-5 text-center transition hover:border-blue-400 hover:bg-blue-50/30"
+                  >
+                    {preview && (
+                      <img
+                        src={preview}
+                        alt={title}
+                        className="mx-auto mb-4 h-32 w-full rounded-xl object-cover"
+                      />
+                    )}
+
+                    <p className="text-sm font-semibold text-gray-700">
+                      Drag & drop an image here
+                    </p>
+                    <p className="my-2 text-xs text-gray-500">or</p>
+
+                    <label className="inline-block cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">
+                      Choose from device
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFile(file, type);
+                        }}
+                      />
+                    </label>
+
+                    <input
+                      value={form[type].startsWith("blob:") ? "" : form[type]}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          [type]: e.target.value,
+                        }))
+                      }
+                      placeholder="Or paste image URL"
+                      className={input}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="mt-8 flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end">
             <Link
               to="/businesses"
-              className="rounded-xl border border-gray-200 px-5 py-3 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="rounded-xl border border-gray-200 px-5 py-3 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </Link>
-
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              {submitting ? 'Creating business...' : 'Create business'}
+              {submitting ? "Creating business..." : "Create business"}
             </button>
           </div>
         </form>
