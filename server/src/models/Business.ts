@@ -17,7 +17,7 @@ export interface OperatingHoursDay {
   close?: string;
 }
 
-export type OperatingHours = Record<DayOfWeek, OperatingHoursDay>;
+export type OperatingHours = Partial<Record<DayOfWeek, OperatingHoursDay>>;
 
 export interface SocialLinks {
   facebook?: string;
@@ -34,11 +34,17 @@ export interface IBusiness extends Document {
   ownerId: Types.ObjectId;
 
   name: string;
+
+  slogan?: string;
+
   slug: string;
+
   description?: string;
 
   email: string;
+
   phone?: string;
+
   whatsappNumber?: string;
 
   category?: string;
@@ -55,7 +61,9 @@ export interface IBusiness extends Document {
   socialLinks?: SocialLinks;
 
   logo?: string;
+
   coverImage?: string;
+
   website?: string;
 
   /**
@@ -67,6 +75,7 @@ export interface IBusiness extends Document {
   status: BusinessStatus;
 
   createdAt: Date;
+
   updatedAt: Date;
 }
 
@@ -218,6 +227,12 @@ const businessSchema = new Schema<IBusiness>(
       maxlength: 100,
     },
 
+    slogan: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    
     slug: {
       type: String,
       required: true,
@@ -235,7 +250,6 @@ const businessSchema = new Schema<IBusiness>(
 
     email: {
       type: String,
-      required: true,
       lowercase: true,
       trim: true,
     },

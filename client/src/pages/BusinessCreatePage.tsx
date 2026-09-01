@@ -1,15 +1,20 @@
 import { useState, type FormEvent, type DragEvent } from "react";
+
 import {
   getCountries,
   getCountryCallingCode,
   type CountryCode,
 } from "libphonenumber-js";
-import { Link, useNavigate } from "react-router-dom";
+
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
 import Container from "../components/layout/Container";
+
 import {
   createBusiness,
   uploadBusinessImage,
 } from "../services/businessService";
+
 import { useBusiness } from "../context/BusinessContext";
 
 const countries = getCountries().map((code) => ({
@@ -42,12 +47,19 @@ const categories = [
 
 function BusinessCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const organizationId = searchParams.get("organizationId");
+
+  const { refreshBusinesses } = useBusiness();
+
   const [country, setCountry] = useState<CountryCode>("UG");
+
   const [logoPreview, setLogoPreview] = useState("");
   const [coverPreview, setCoverPreview] = useState("");
+
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const { refreshBusinesses } = useBusiness();
 
   const [form, setForm] = useState({
     name: "",
@@ -58,6 +70,7 @@ function BusinessCreatePage() {
     email: "",
     address: "",
     city: "",
+    district: "",
     country: "Uganda",
     logo: "",
     coverImage: "",
@@ -66,7 +79,7 @@ function BusinessCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const countryCode = getCountryCallingCode(country);
+  const countryCode = `+${getCountryCallingCode(country)}`;
 
   function handleChange(
     event: React.ChangeEvent<
@@ -77,22 +90,41 @@ function BusinessCreatePage() {
 
     if (name === "phone") {
       let phone = value.replace(/[^\d]/g, "");
-      if (phone.startsWith("0")) phone = phone.slice(1);
-      setForm((current) => ({ ...current, phone }));
+
+      if (phone.startsWith("0")) {
+        phone = phone.slice(1);
+      }
+
+      setForm((current) => ({
+        ...current,
+        phone,
+      }));
+
       return;
     }
 
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
   }
 
-  function handleCountryChange(event: React.ChangeEvent<HTMLSelectElement>) {
+  function handleCountryChange(
+    event: React.ChangeEvent<HTMLSelectElement>,
+  ) {
     const value = event.target.value as CountryCode;
+
     setCountry(value);
 
     const countryName =
-      new Intl.DisplayNames(["en"], { type: "region" }).of(value) ?? value;
+      new Intl.DisplayNames(["en"], {
+        type: "region",
+      }).of(value) ?? value;
 
-    setForm((current) => ({ ...current, country: countryName }));
+    setForm((current) => ({
+      ...current,
+      country: countryName,
+    }));
   }
 
   function handleFile(file: File, type: "logo" | "coverImage") {
@@ -101,13 +133,17 @@ function BusinessCreatePage() {
       return;
     }
 
+    setError("");
+
     const preview = URL.createObjectURL(file);
 
-    if (type === "logo") setLogoPreview(preview);
-    else setCoverPreview(preview);
-
-    if (type === "logo") setLogoFile(file);
-    else setCoverFile(file);
+    if (type === "logo") {
+      setLogoPreview(preview);
+      setLogoFile(file);
+    } else {
+      setCoverPreview(preview);
+      setCoverFile(file);
+    }
 
     setForm((current) => ({
       ...current,
@@ -120,15 +156,29 @@ function BusinessCreatePage() {
     type: "logo" | "coverImage",
   ) {
     event.preventDefault();
+
     const file = event.dataTransfer.files[0];
-    if (file) handleFile(file, type);
+
+    if (file) {
+      handleFile(file, type);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.name.trim()) {
+    const trimmedName = form.name.trim();
+
+    if (!trimmedName) {
       setError("Business name is required.");
+      return;
+    }
+
+    if (
+      form.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    ) {
+      setError("Please enter a valid business email.");
       return;
     }
 
@@ -137,48 +187,61 @@ function BusinessCreatePage() {
       setError("");
 
       const response = await createBusiness({
+        organizationId: organizationId || undefined,
         name: form.name.trim(),
         slogan: form.slogan.trim() || undefined,
         description: form.description.trim() || undefined,
         category: form.category || undefined,
-        phone: form.phone ? `${countryCode} ${form.phone}` : undefined,
-        email: form.email.trim() || undefined,
-        address: form.address.trim() || undefined,
-        city: form.city.trim() || undefined,
-        country: form.country,
-        logo: form.logo.startsWith("http") ? form.logo : undefined,
+        phone: form.phone
+          ? `${countryCode} ${form.phone}`
+          : undefined,
+        email: form.email.trim(),
+        location: {
+          country: form.country,
+          city: form.city.trim() || undefined,
+          address: form.address.trim() || undefined,
+        },
+        logo: form.logo.startsWith("http")
+          ? form.logo
+          : undefined,
         coverImage: form.coverImage.startsWith("http")
           ? form.coverImage
           : undefined,
       });
 
       if (!response.success) {
-        throw new Error(response.message || "Unable to create business.");
+        throw new Error(
+          response.message || "Unable to create business.",
+        );
       }
 
       const businessId = response.data.business._id;
 
       if (logoFile) {
-        await uploadBusinessImage(businessId, logoFile, "logo");
+        await uploadBusinessImage(
+          businessId,
+          logoFile,
+          "logo",
+        );
       }
 
       if (coverFile) {
-        await uploadBusinessImage(businessId, coverFile, "cover");
+        await uploadBusinessImage(
+          businessId,
+          coverFile,
+          "cover",
+        );
       }
 
       await refreshBusinesses();
 
-      navigate("/businesses/manage");
-
-      if (logoFile) {
-        uploadBusinessImage(businessId, logoFile, "logo").catch((error) => {
-          console.error("Logo upload failed:", error);
+      if (organizationId) {
+        navigate(`/organizations/${organizationId}`, {
+          replace: true,
         });
-      }
-
-      if (coverFile) {
-        uploadBusinessImage(businessId, coverFile, "cover").catch((error) => {
-          console.error("Cover image upload failed:", error);
+      } else {
+        navigate("/businesses/manage", {
+          replace: true,
         });
       }
     } catch (err: unknown) {
@@ -211,12 +274,20 @@ function BusinessCreatePage() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
             DOM business setup
           </p>
+
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">
             Create your business
           </h1>
+
           <p className="mt-3 max-w-2xl text-sm text-blue-100 sm:text-base">
             Build your business profile and show customers your brand.
           </p>
+
+          {organizationId && (
+            <div className="mt-5 rounded-xl bg-white/10 px-4 py-3 text-sm text-blue-50">
+              This business will be added to your organization.
+            </div>
+          )}
         </section>
 
         <form
@@ -234,6 +305,7 @@ function BusinessCreatePage() {
               <label className="text-sm font-semibold text-gray-700">
                 Business name *
               </label>
+
               <input
                 name="name"
                 value={form.name}
@@ -248,6 +320,7 @@ function BusinessCreatePage() {
               <label className="text-sm font-semibold text-gray-700">
                 Brand slogan
               </label>
+
               <input
                 name="slogan"
                 value={form.slogan}
@@ -261,6 +334,7 @@ function BusinessCreatePage() {
               <label className="text-sm font-semibold text-gray-700">
                 Category
               </label>
+
               <select
                 name="category"
                 value={form.category}
@@ -268,8 +342,11 @@ function BusinessCreatePage() {
                 className={input}
               >
                 <option value="">Select category</option>
+
                 {categories.map((item) => (
-                  <option key={item}>{item}</option>
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
             </div>
@@ -278,6 +355,7 @@ function BusinessCreatePage() {
               <label className="text-sm font-semibold text-gray-700">
                 Country
               </label>
+
               <select
                 value={country}
                 onChange={handleCountryChange}
@@ -285,9 +363,9 @@ function BusinessCreatePage() {
               >
                 {countries.map(({ code, callingCode }) => {
                   const name =
-                    new Intl.DisplayNames(["en"], { type: "region" }).of(
-                      code,
-                    ) ?? code;
+                    new Intl.DisplayNames(["en"], {
+                      type: "region",
+                    }).of(code) ?? code;
 
                   return (
                     <option key={code} value={code}>
@@ -302,10 +380,12 @@ function BusinessCreatePage() {
               <label className="text-sm font-semibold text-gray-700">
                 Phone
               </label>
+
               <div className="mt-2 flex">
                 <span className="flex items-center rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 px-4 text-sm font-semibold text-gray-700">
                   {countryCode}
                 </span>
+
                 <input
                   name="phone"
                   value={form.phone}
@@ -321,6 +401,7 @@ function BusinessCreatePage() {
               <label className="text-sm font-semibold text-gray-700">
                 Business email
               </label>
+
               <input
                 name="email"
                 type="email"
@@ -333,8 +414,23 @@ function BusinessCreatePage() {
 
             <div>
               <label className="text-sm font-semibold text-gray-700">
+                District
+              </label>
+
+              <input
+                name="district"
+                value={form.district}
+                onChange={handleChange}
+                placeholder="Kampala"
+                className={input}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700">
                 City
               </label>
+
               <input
                 name="city"
                 value={form.city}
@@ -344,10 +440,11 @@ function BusinessCreatePage() {
               />
             </div>
 
-            <div>
+            <div className="lg:col-span-2">
               <label className="text-sm font-semibold text-gray-700">
                 Address
               </label>
+
               <input
                 name="address"
                 value={form.address}
@@ -362,6 +459,7 @@ function BusinessCreatePage() {
             <label className="text-sm font-semibold text-gray-700">
               Business description
             </label>
+
             <textarea
               name="description"
               value={form.description}
@@ -373,7 +471,10 @@ function BusinessCreatePage() {
           </div>
 
           <div className="mt-8 border-t border-gray-100 pt-8">
-            <h2 className="text-lg font-bold text-gray-900">Brand images</h2>
+            <h2 className="text-lg font-bold text-gray-900">
+              Brand images
+            </h2>
+
             <p className="mt-1 text-sm text-gray-500">
               Upload, drag and drop, or use an image URL.
             </p>
@@ -391,8 +492,8 @@ function BusinessCreatePage() {
                   </label>
 
                   <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => handleDrop(e, type)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => handleDrop(event, type)}
                     className="mt-2 rounded-2xl border-2 border-dashed border-gray-300 p-5 text-center transition hover:border-blue-400 hover:bg-blue-50/30"
                   >
                     {preview && (
@@ -406,27 +507,39 @@ function BusinessCreatePage() {
                     <p className="text-sm font-semibold text-gray-700">
                       Drag & drop an image here
                     </p>
-                    <p className="my-2 text-xs text-gray-500">or</p>
+
+                    <p className="my-2 text-xs text-gray-500">
+                      or
+                    </p>
 
                     <label className="inline-block cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">
                       Choose from device
+
                       <input
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFile(file, type);
+                        onChange={(event) => {
+                          const file =
+                            event.target.files?.[0];
+
+                          if (file) {
+                            handleFile(file, type);
+                          }
                         }}
                       />
                     </label>
 
                     <input
-                      value={form[type].startsWith("blob:") ? "" : form[type]}
-                      onChange={(e) =>
+                      value={
+                        form[type].startsWith("blob:")
+                          ? ""
+                          : form[type]
+                      }
+                      onChange={(event) =>
                         setForm((current) => ({
                           ...current,
-                          [type]: e.target.value,
+                          [type]: event.target.value,
                         }))
                       }
                       placeholder="Or paste image URL"
@@ -445,12 +558,15 @@ function BusinessCreatePage() {
             >
               Cancel
             </Link>
+
             <button
               type="submit"
               disabled={submitting}
               className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              {submitting ? "Creating business..." : "Create business"}
+              {submitting
+                ? "Creating business..."
+                : "Create business"}
             </button>
           </div>
         </form>

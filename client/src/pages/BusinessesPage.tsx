@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-
 import { Link } from "react-router-dom";
 
 import Card from "../components/ui/Card";
-
 import Container from "../components/layout/Container";
-
 import LoadingState from "../components/ui/LoadingState";
-
 import { useAuth } from "../hooks/useAuth";
-
 import { useBusiness } from "../context/BusinessContext";
-
 import {
   getDiscovery,
   type DiscoveryBusiness,
 } from "../services/discoveryService";
+import {
+  getMyOrganizations,
+  getOrganizationBusinesses,
+} from "../services/organizationService";
+import type { Organization } from "../types/organization";
+import type { Business } from "../services/businessService";
 
 function BusinessesPage() {
   const { user, isAuthenticated } = useAuth();
@@ -35,18 +35,36 @@ function BusinessesPage() {
   const [switchError, setSwitchError] = useState("");
 
   const [showOrganizationReminder, setShowOrganizationReminder] = useState(
-    () => localStorage.getItem("organizationReminderDismissed") !== "true",
+    () =>
+      localStorage.getItem("organizationReminderDismissed") !== "true",
   );
 
-  const hasBusinesses = myBusinesses.length > 0;
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizationBusinesses, setOrganizationBusinesses] = useState<
+    Record<string, Business[]>
+  >({});
 
+  const hasBusinesses = myBusinesses.length > 0;
   const isBusinessAccount = user?.accountTypes?.includes("business");
+
+  const organization =
+    organizations.length === 1 ? organizations[0] : undefined;
+
+  const activeOrganizationBusinesses = organization
+    ? (organizationBusinesses[organization._id] ?? [])
+    : [];
+
+  const isOrganizationUser =
+    isAuthenticated && isBusinessAccount && !!organization;
+
+  const organizationBusinessCount = activeOrganizationBusinesses.length;
 
   const showBusinessOnboarding =
     isAuthenticated &&
     isBusinessAccount &&
     !businessesLoading &&
-    !hasBusinesses;
+    !hasBusinesses &&
+    organizations.length === 0;
 
   useEffect(() => {
     let mounted = true;
@@ -95,15 +113,68 @@ function BusinessesPage() {
     };
   }, [businessesLoading]);
 
-  const myBusinessIds = useMemo(
-    () => new Set(myBusinesses.map((business) => business._id)),
-    [myBusinesses],
-  );
+  useEffect(() => {
+  if (!isAuthenticated || !isBusinessAccount) {
+    return;
+  }
+
+  let mounted = true;
+
+  async function loadOrganizations() {
+    try {
+      const response = await getMyOrganizations();
+
+      if (!mounted) {
+        return;
+      }
+
+      const orgs = response.data.organizations;
+
+      setOrganizations(orgs);
+
+      const businessResults = await Promise.all(
+        orgs.map(async (organization) => {
+          const businessesResponse = await getOrganizationBusinesses(
+            organization._id,
+          );
+
+          return [
+            organization._id,
+            businessesResponse.data.businesses,
+          ] as const;
+        }),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setOrganizationBusinesses(Object.fromEntries(businessResults));
+    } catch {
+      if (mounted) {
+        setOrganizations([]);
+        setOrganizationBusinesses({});
+      }
+    }
+  }
+
+  void loadOrganizations();
+
+  return () => {
+    mounted = false;
+  };
+}, [isAuthenticated, isBusinessAccount]);
 
   const discoverableBusinesses = useMemo(
-    () => businesses.filter((business) => !myBusinessIds.has(business._id)),
-    [businesses, myBusinessIds],
-  );
+  () =>
+    businesses.filter(
+      (business) =>
+        !myBusinesses.some(
+          (myBusiness) => myBusiness._id === business._id,
+        ),
+    ),
+  [businesses, myBusinesses],
+);
 
   const filteredBusinesses = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -121,7 +192,9 @@ function BusinessesPage() {
     });
   }, [discoverableBusinesses, search]);
 
-  async function handleBusinessSwitch(event: ChangeEvent<HTMLSelectElement>) {
+  async function handleBusinessSwitch(
+    event: ChangeEvent<HTMLSelectElement>,
+  ) {
     const businessId = event.target.value;
 
     if (!businessId || businessId === activeBusiness?._id) {
@@ -150,70 +223,22 @@ function BusinessesPage() {
   ) {
     const value = (business as Record<string, unknown>).slogan;
 
-    return typeof value === "string" && value.trim() ? value.trim() : undefined;
+    return typeof value === "string" && value.trim()
+      ? value.trim()
+      : undefined;
   }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-50 py-8 sm:py-10">
       <div className="pointer-events-none absolute -left-32 top-20 h-72 w-72 animate-[pulse_7s_ease-in-out_infinite] rounded-full bg-blue-200/30 blur-3xl" />
-
       <div className="pointer-events-none absolute -right-32 top-96 h-80 w-80 rounded-full bg-indigo-200/20 blur-3xl" />
 
       <Container>
-        {isAuthenticated &&
-          !businessesLoading &&
-          hasBusinesses &&
-          showOrganizationReminder && (
-            <section className="relative mb-6 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
-              <button
-                type="button"
-                onClick={dismissOrganizationReminder}
-                aria-label="Close organization reminder"
-                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
-              >
-                <span className="text-xl leading-none">×</span>
-              </button>
-
-              <div className="flex flex-col gap-4 pr-8 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
-                    Organization
-                  </p>
-
-                  <h2 className="mt-1 text-lg font-bold text-gray-900">
-                    Manage your businesses together
-                  </h2>
-
-                  <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-                    Create an organization and bring your businesses together
-                    under one management structure.
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 gap-2 mt-8 sm:items-end">
-                  <Link
-                    to="/organizations/create"
-                    className="rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                  >
-                    + Create organization
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={dismissOrganizationReminder}
-                    className="text-sm font-semibold bg-gray-200 text-gray-500 px-5 py-2.5 rounded-xl transition hover:text-gray-700 hover:bg-gray-300"
-                  >
-                    Remind me later
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
-
         {isAuthenticated && !businessesLoading && hasBusinesses && (
           <section className="mb-8 overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white shadow-2xl shadow-blue-200/40">
             <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14">
               <div className="flex flex-col gap-8">
+                {/* Header */}
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 items-start gap-4">
                     {activeBusiness?.logo ? (
@@ -230,23 +255,43 @@ function BusinessesPage() {
 
                     <div className="min-w-0">
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
-                        My Businesses
+                        {isOrganizationUser
+                          ? "Organization"
+                          : "My Businesses"}
                       </p>
 
                       <h1 className="mt-1 truncate text-2xl font-bold sm:text-3xl">
-                        {activeBusiness?.name ?? "Your businesses"}
+                        {isOrganizationUser
+                          ? organization?.name
+                          : (activeBusiness?.name ?? "Your businesses")}
                       </h1>
 
-                      {activeBusiness && getSlogan(activeBusiness) && (
-                        <p className="mt-1 text-sm italic text-blue-100">
-                          {getSlogan(activeBusiness)}
+                      {isOrganizationUser && organization?.description && (
+                        <p className="mt-1 text-sm text-blue-100">
+                          {organization.description}
                         </p>
                       )}
 
+                      {!isOrganizationUser &&
+                        activeBusiness &&
+                        getSlogan(activeBusiness) && (
+                          <p className="mt-1 text-sm italic text-blue-100">
+                            {getSlogan(activeBusiness)}
+                          </p>
+                        )}
+
                       <p className="mt-2 text-sm text-blue-100">
-                        {myBusinesses.length}{" "}
-                        {myBusinesses.length === 1 ? "business" : "businesses"}{" "}
-                        owned by you on Denvia.
+                        {isOrganizationUser
+                          ? `${organizationBusinessCount} ${
+                              organizationBusinessCount === 1
+                                ? "business"
+                                : "businesses"
+                            } owned by you on Denvia.`
+                          : `${myBusinesses.length} ${
+                              myBusinesses.length === 1
+                                ? "business"
+                                : "businesses"
+                            } owned by you on Denvia.`}
                       </p>
                     </div>
                   </div>
@@ -259,64 +304,139 @@ function BusinessesPage() {
                   </Link>
                 </div>
 
-                {myBusinesses.length > 1 && (
-                  <div className="max-w-md">
-                    <label
-                      htmlFor="active-business"
-                      className="text-sm font-semibold text-white"
-                    >
-                      Active business
-                    </label>
+                {/* Active business */}
+                {isOrganizationUser ? (
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-100">
+                          Active business
+                        </p>
 
-                    <select
-                      id="active-business"
-                      value={activeBusiness?._id ?? ""}
-                      onChange={handleBusinessSwitch}
-                      disabled={switchingBusiness}
-                      className="mt-2 w-full rounded-xl border border-white/20 bg-white px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-white focus:ring-4 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {myBusinesses.map((business) => (
-                        <option key={business._id} value={business._id}>
-                          {business.name}
-                        </option>
-                      ))}
-                    </select>
+                        <h2 className="mt-1 text-xl font-bold text-white">
+                          {activeBusiness?.name ?? "No active business"}
+                        </h2>
+                      </div>
 
-                    {switchingBusiness && (
-                      <p className="mt-2 text-xs font-medium text-blue-100">
-                        Switching business...
+                      <div className="rounded-xl bg-white/10 px-4 py-3 text-center ring-1 ring-white/15">
+                        <p className="text-2xl font-bold">
+                          {organizationBusinessCount}
+                        </p>
+
+                        <p className="text-xs text-blue-100">
+                          {organizationBusinessCount === 1
+                            ? "Business"
+                            : "Businesses"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  myBusinesses.length > 1 && (
+                    <div className="max-w-md">
+                      <label
+                        htmlFor="active-business"
+                        className="text-sm font-semibold text-white"
+                      >
+                        Active business
+                      </label>
+
+                      <select
+                        id="active-business"
+                        value={activeBusiness?._id ?? ""}
+                        onChange={handleBusinessSwitch}
+                        disabled={switchingBusiness}
+                        className="mt-2 w-full rounded-xl border border-white/20 bg-white px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-white focus:ring-4 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {myBusinesses.map((business) => (
+                          <option key={business._id} value={business._id}>
+                            {business.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {switchingBusiness && (
+                        <p className="mt-2 text-xs font-medium text-blue-100">
+                          Switching business...
+                        </p>
+                      )}
+
+                      {switchError && (
+                        <p className="mt-2 text-xs font-medium text-red-200">
+                          {switchError}
+                        </p>
+                      )}
+                    </div>
+                  )
+                )}
+
+                {/* Organization reminder */}
+                {showOrganizationReminder && !isOrganizationUser && (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-white/15 bg-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-white">
+                        Growing beyond one business?
                       </p>
-                    )}
 
-                    {switchError && (
-                      <p className="mt-2 text-xs font-medium text-red-200">
-                        {switchError}
+                      <p className="mt-1 text-xs leading-5 text-blue-100">
+                        You can create and manage multiple businesses on
+                        Denvia, or organize them under an organization.
                       </p>
-                    )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={dismissOrganizationReminder}
+                      className="shrink-0 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
+                    >
+                      Dismiss
+                    </button>
                   </div>
                 )}
 
+                {/* Actions */}
                 <div className="border-t border-white/15 pt-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-semibold text-blue-50">
-                      Build your brand presence and manage your businesses on
-                      Denvia.
+                      {isOrganizationUser
+                        ? "Build your brand presence and manage your organization on Denvia."
+                        : "Build your brand presence and manage your businesses on Denvia."}
                     </p>
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <Link
-                        to="/businesses/manage"
-                        className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 hover:shadow-md"
-                      >
-                        Manage my businesses
-                      </Link>
+                      {isOrganizationUser ? (
+                        <>
+                          <Link
+                            to={`/organizations/${organization?._id}`}
+                            className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50 hover:shadow-md"
+                          >
+                            Manage Organization
+                          </Link>
 
-                      <Link
-                        to="/businesses/create"
-                        className="text-sm font-bold text-white hover:text-blue-100 hover:underline"
-                      >
-                        + Create another business
-                      </Link>
+                          <Link
+                            to={`/organizations/${organization?._id}/businesses/create`}
+                            className="text-sm font-bold text-white hover:text-blue-100 hover:underline"
+                          >
+                            + Create New Business
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            to="/businesses/manage"
+                            className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 hover:shadow-md"
+                          >
+                            Manage my businesses
+                          </Link>
+
+                          <Link
+                            to="/businesses/create"
+                            className="text-sm font-bold text-white hover:text-blue-100 hover:underline"
+                          >
+                            + Create another business
+                          </Link>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -352,7 +472,9 @@ function BusinessesPage() {
                     🏪
                   </div>
 
-                  <h2 className="mt-5 text-xl font-bold">Just one business</h2>
+                  <h2 className="mt-5 text-xl font-bold">
+                    Just one business
+                  </h2>
 
                   <p className="mt-2 text-sm leading-6 text-gray-600">
                     Manage a single business independently.
@@ -419,7 +541,10 @@ function BusinessesPage() {
               </div>
 
               <div className="relative">
-                <label htmlFor="business-search" className="sr-only">
+                <label
+                  htmlFor="business-search"
+                  className="sr-only"
+                >
                   Search businesses
                 </label>
 
@@ -447,7 +572,9 @@ function BusinessesPage() {
 
         {!loading && discoveryError && (
           <Card className="mt-8 text-center">
-            <p className="font-medium text-red-600">{discoveryError}</p>
+            <p className="font-medium text-red-600">
+              {discoveryError}
+            </p>
           </Card>
         )}
 
@@ -463,8 +590,8 @@ function BusinessesPage() {
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Explore businesses on Denvia. Your own businesses are not shown
-                here.
+                Explore businesses on Denvia. Your own businesses are not
+                shown here.
               </p>
             </div>
 

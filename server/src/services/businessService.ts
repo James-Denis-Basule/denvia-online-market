@@ -1,15 +1,19 @@
 import mongoose from "mongoose";
+
 import Product from "../models/Product.js";
 import Business from "../models/Business.js";
 import User from "../models/User.js";
 import Organization from "../models/Organization.js";
+
 import { AppError } from "../utils/AppError.js";
 import { getPagination } from "../utils/pagination.js";
 import { generateSlug } from "../utils/slug.js";
+
 import type {
   CreateBusinessInput,
   PublicBusinessQueryInput,
 } from "../types/business.js";
+
 import type { PublicProductQueryInput } from "../types/product.js";
 
 export async function createBusiness(
@@ -41,32 +45,50 @@ export async function createBusiness(
   });
 
   if (existingBusiness) {
-    throw new AppError("A business with this name already exists", 409);
+    throw new AppError(
+      "A business with this name already exists",
+      409,
+    );
   }
 
   const business = await Business.create({
     ownerId,
     organizationId: input.organizationId,
+
     slug,
+
     name: input.name,
+    slogan: input.slogan,
     description: input.description,
-    email: input.email,
+
+    email: input.email || undefined,
     phone: input.phone,
     whatsappNumber: input.whatsappNumber,
+
     category: input.category,
+
     location: input.location,
+
     operatingHours: input.operatingHours,
     socialLinks: input.socialLinks,
+
     logo: input.logo,
     coverImage: input.coverImage,
+
     website: input.website,
   });
 
-  const user = await User.findById(ownerId).select("+activeBusinessId");
+  const user = await User.findById(ownerId).select(
+    "+activeBusinessId",
+  );
 
   if (!user) {
     await Business.findByIdAndDelete(business._id);
-    throw new AppError("User account not found", 404);
+
+    throw new AppError(
+      "User account not found",
+      404,
+    );
   }
 
   if (!user.activeBusinessId) {
@@ -85,7 +107,10 @@ export async function getMyBusinesses(ownerId: string) {
     });
 }
 
-export async function selectBusiness(businessId: string, ownerId: string) {
+export async function selectBusiness(
+  businessId: string,
+  ownerId: string,
+) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -102,19 +127,28 @@ export async function selectBusiness(businessId: string, ownerId: string) {
     );
   }
 
-  const user = await User.findById(ownerId);
+  const user = await User.findById(ownerId).select(
+    "+activeBusinessId",
+  );
 
   if (!user) {
-    throw new AppError("User account not found", 404);
+    throw new AppError(
+      "User account not found",
+      404,
+    );
   }
 
   user.activeBusinessId = business._id;
+
   await user.save();
 
   return business;
 }
 
-export async function getBusinessById(businessId: string, ownerId: string) {
+export async function getBusinessById(
+  businessId: string,
+  ownerId: string,
+) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -164,11 +198,22 @@ export async function updateBusiness(
     });
 
     if (existingBusiness) {
-      throw new AppError("A business with this name already exists", 409);
+      throw new AppError(
+        "A business with this name already exists",
+        409,
+      );
     }
 
     business.name = input.name;
     business.slug = newSlug;
+  }
+
+  if (input.slogan !== undefined) {
+    business.slogan = input.slogan;
+  }
+
+  if (input.slogan !== undefined) {
+    business.slogan = input.slogan;
   }
 
   if (input.description !== undefined) {
@@ -192,7 +237,10 @@ export async function updateBusiness(
   }
 
   if (input.location !== undefined) {
-    business.location = input.location;
+    business.location = {
+      ...business.location,
+      ...input.location,
+    } as typeof business.location;
   }
 
   if (input.website !== undefined) {
@@ -223,7 +271,10 @@ export async function updateBusiness(
   return business;
 }
 
-export async function deleteBusiness(businessId: string, ownerId: string) {
+export async function deleteBusiness(
+  businessId: string,
+  ownerId: string,
+) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -240,13 +291,19 @@ export async function deleteBusiness(businessId: string, ownerId: string) {
     );
   }
 
-  const user = await User.findById(ownerId).select("+activeBusinessId");
+  const user = await User.findById(ownerId).select(
+    "+activeBusinessId",
+  );
 
   if (!user) {
-    throw new AppError("User account not found", 404);
+    throw new AppError(
+      "User account not found",
+      404,
+    );
   }
 
-  const wasActiveBusiness = user.activeBusinessId?.toString() === businessId;
+  const wasActiveBusiness =
+    user.activeBusinessId?.toString() === businessId;
 
   await Business.findByIdAndDelete(businessId);
 
@@ -272,8 +329,16 @@ export async function deleteBusiness(businessId: string, ownerId: string) {
   return true;
 }
 
-export async function getPublicBusinesses(query: PublicBusinessQueryInput) {
-  const { page, limit, search, category, sort } = query;
+export async function getPublicBusinesses(
+  query: PublicBusinessQueryInput,
+) {
+  const {
+    page,
+    limit,
+    search,
+    category,
+    sort,
+  } = query;
 
   const filter: Record<string, unknown> = {
     status: "active",
@@ -283,6 +348,12 @@ export async function getPublicBusinesses(query: PublicBusinessQueryInput) {
     filter.$or = [
       {
         name: {
+          $regex: search,
+          $options: "i",
+        },
+      },
+      {
+        slogan: {
           $regex: search,
           $options: "i",
         },
@@ -310,24 +381,33 @@ export async function getPublicBusinesses(query: PublicBusinessQueryInput) {
     name_desc: { name: -1 },
   } as const;
 
-  const { page: safePage, limit: safeLimit, skip } = getPagination(page, limit);
+  const {
+    page: safePage,
+    limit: safeLimit,
+    skip,
+  } = getPagination(page, limit);
 
-  const [businesses, total] = await Promise.all([
-    Business.find(filter)
-      .select(
-        "_id name slug description email phone category location logo coverImage website status createdAt updatedAt",
-      )
-      .sort(sortMap[sort])
-      .skip(skip)
-      .limit(safeLimit),
+  const [businesses, total] =
+    await Promise.all([
+      Business.find(filter)
+        .select(
+          "_id name slogan slug description email phone category location logo coverImage website status isFeatured createdAt updatedAt",
+        )
+        .sort(sortMap[sort])
+        .skip(skip)
+        .limit(safeLimit),
 
-    Business.countDocuments(filter),
-  ]);
+      Business.countDocuments(filter),
+    ]);
 
-  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(total / safeLimit),
+  );
 
   return {
     businesses,
+
     pagination: {
       page: safePage,
       limit: safeLimit,
@@ -339,7 +419,9 @@ export async function getPublicBusinesses(query: PublicBusinessQueryInput) {
   };
 }
 
-export async function getPublicBusinessById(businessId: string) {
+export async function getPublicBusinessById(
+  businessId: string,
+) {
   if (!mongoose.isValidObjectId(businessId)) {
     throw new AppError("Invalid business ID", 400);
   }
@@ -348,11 +430,14 @@ export async function getPublicBusinessById(businessId: string) {
     _id: businessId,
     status: "active",
   }).select(
-    "_id name slug description email phone category location logo coverImage website status createdAt updatedAt",
+    "_id name slogan slug description email phone category location logo coverImage website status isFeatured createdAt updatedAt",
   );
 
   if (!business) {
-    throw new AppError("Business not found", 404);
+    throw new AppError(
+      "Business not found",
+      404,
+    );
   }
 
   return business;
@@ -363,7 +448,10 @@ export async function getPublicBusinessProducts(
   query: PublicProductQueryInput,
 ) {
   if (!mongoose.isValidObjectId(businessId)) {
-    throw new AppError("Invalid business ID", 400);
+    throw new AppError(
+      "Invalid business ID",
+      400,
+    );
   }
 
   const business = await Business.findOne({
@@ -372,10 +460,19 @@ export async function getPublicBusinessProducts(
   });
 
   if (!business) {
-    throw new AppError("Business not found", 404);
+    throw new AppError(
+      "Business not found",
+      404,
+    );
   }
 
-  const { page, limit, search, categoryId, sort } = query;
+  const {
+    page,
+    limit,
+    search,
+    categoryId,
+    sort,
+  } = query;
 
   const filter: Record<string, unknown> = {
     businessId,
@@ -405,23 +502,26 @@ export async function getPublicBusinessProducts(
 
   const skip = (page - 1) * limit;
 
-  const [products, total] = await Promise.all([
-    Product.find(filter)
-      .populate({
-        path: "categoryId",
-        select: "name slug description",
-      })
-      .sort(sortMap[sort])
-      .skip(skip)
-      .limit(limit),
+  const [products, total] =
+    await Promise.all([
+      Product.find(filter)
+        .populate({
+          path: "categoryId",
+          select: "name slug description",
+        })
+        .sort(sortMap[sort])
+        .skip(skip)
+        .limit(limit),
 
-    Product.countDocuments(filter),
-  ]);
+      Product.countDocuments(filter),
+    ]);
 
-  const totalPages = Math.ceil(total / limit);
+  const totalPages =
+    Math.ceil(total / limit);
 
   return {
     products,
+
     pagination: {
       page,
       limit,
@@ -438,34 +538,55 @@ export async function getBusinessWhatsAppLink(
   message?: string,
 ) {
   if (!mongoose.isValidObjectId(businessId)) {
-    throw new AppError("Invalid business ID", 400);
+    throw new AppError(
+      "Invalid business ID",
+      400,
+    );
   }
 
   const business = await Business.findOne({
     _id: businessId,
     status: "active",
-  }).select("name phone whatsappNumber");
+  }).select(
+    "name phone whatsappNumber",
+  );
 
   if (!business) {
-    throw new AppError("Business not found", 404);
+    throw new AppError(
+      "Business not found",
+      404,
+    );
   }
 
-  const whatsappNumber = business.whatsappNumber || business.phone;
+  const whatsappNumber =
+    business.whatsappNumber ||
+    business.phone;
 
   if (!whatsappNumber) {
-    throw new AppError("This business does not have a WhatsApp number", 400);
+    throw new AppError(
+      "This business does not have a WhatsApp number",
+      400,
+    );
   }
 
-  const phone = whatsappNumber.replace(/\D/g, "");
+  const phone =
+    whatsappNumber.replace(/\D/g, "");
 
   if (!phone) {
-    throw new AppError("This business does not have a valid phone number", 400);
+    throw new AppError(
+      "This business does not have a valid phone number",
+      400,
+    );
   }
 
-  const whatsappUrl = new URL(`https://wa.me/${phone}`);
+  const whatsappUrl =
+    new URL(`https://wa.me/${phone}`);
 
   if (message?.trim()) {
-    whatsappUrl.searchParams.set("text", message.trim());
+    whatsappUrl.searchParams.set(
+      "text",
+      message.trim(),
+    );
   }
 
   return {

@@ -7,6 +7,7 @@ import BusinessesPage from "../pages/BusinessesPage";
 import BusinessManagementPage from "../pages/BusinessManagementPage";
 import BusinessCreatePage from "../pages/BusinessCreatePage";
 import OrganizationCreatePage from "../pages/OrganizationCreatePage";
+import OrganizationManagementPage from "../pages/OrganizationManagementPage";
 import ProductsPage from "../pages/ProductsPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
@@ -33,6 +34,7 @@ const pageTitles: Record<string, string> = {
   "/businesses/manage": "DOM | Manage Businesses",
   "/businesses/create": "DOM | Create Business",
   "/organizations/create": "DOM | Create Organization",
+  "/organizations": "DOM | Organizations",
   "/products": "DOM | Products",
   "/login": "DOM | Login",
   "/account-types": "DOM | Account Types",
@@ -98,6 +100,11 @@ function AppRoutes() {
                 path="/organizations/create"
                 element={<OrganizationCreatePage />}
               />
+
+              <Route
+                path="/organizations/:id"
+                element={<OrganizationManagementPage />}
+              />
             </Route>
 
             {/* Existing business required */}
@@ -105,10 +112,7 @@ function AppRoutes() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/chat" element={<ChatPage />} />
 
-              <Route
-                path="/services/create"
-                element={<ServiceCreatePage />}
-              />
+              <Route path="/services/create" element={<ServiceCreatePage />} />
 
               <Route
                 path="/services/edit/:serviceId"
