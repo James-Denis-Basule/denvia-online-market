@@ -96,7 +96,7 @@ function CartPage() {
           </div>
 
           <Link
-            to="/products"
+            to="/marketplace?type=products"
             className="text-sm font-semibold text-blue-600 transition hover:text-blue-700"
           >
             Continue shopping →
@@ -119,7 +119,7 @@ function CartPage() {
                 you would like to purchase.
               </p>
 
-              <Link to="/products" className="mt-6">
+              <Link to="/marketplace?type=products" className="mt-6">
                 <Button>Start shopping</Button>
               </Link>
             </div>

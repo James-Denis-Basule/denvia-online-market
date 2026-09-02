@@ -25,7 +25,7 @@ function MainLayout() {
   const customerNavigation = [
     { label: "Home", to: "/" },
     { label: "Businesses", to: "/businesses" },
-    { label: "Products", to: "/products" },
+    { label: "Marketplace", to: "/marketplace" },
     { label: "Cart", to: "/cart" },
     { label: "Orders", to: "/orders" },
   ];
@@ -33,7 +33,7 @@ function MainLayout() {
   const businessNavigation = [
     { label: "Home", to: "/" },
     { label: "Businesses", to: "/businesses" },
-    { label: "Products", to: "/products" },
+    { label: "Marketplace", to: "/marketplace" },
     { label: "Cart", to: "/cart" },
     { label: "Orders", to: "/orders" },
     { label: "Dashboard", to: "/dashboard" },
@@ -44,7 +44,7 @@ function MainLayout() {
   const publicNavigation = [
     { label: "Home", to: "/" },
     { label: "Businesses", to: "/businesses" },
-    { label: "Products", to: "/products" },
+    { label: "Marketplace", to: "/marketplace" },
     { label: "Cart", to: "/cart" },
   ];
 

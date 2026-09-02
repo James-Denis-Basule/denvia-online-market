@@ -134,7 +134,7 @@ function AccountTypesPage() {
               </ul>
 
               <div className="mt-auto pt-8">
-                <Link to="/register?type=business">
+                <Link to="/register?type=business&accountType=business">
                   <Button className="w-full">
                     Create Business Account
                   </Button>

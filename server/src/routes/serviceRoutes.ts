@@ -7,6 +7,7 @@ import {
   updateServiceController,
   deleteServiceController,
   getPublicServicesController,
+  getPublicMarketplaceServicesController,
   getDeletedServicesController,
   restoreServiceController,
 } from "../controllers/serviceController.js";
@@ -21,6 +22,11 @@ const router = Router();
  * Example:
  * GET /api/services/public/business/:businessId
  */
+router.get(
+  "/public",
+  getPublicMarketplaceServicesController,
+);
+
 router.get(
   "/public/business/:businessId",
   getPublicServicesController,

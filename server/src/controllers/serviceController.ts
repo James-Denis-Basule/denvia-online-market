@@ -9,6 +9,7 @@ import {
   updateService,
   deleteService,
   getPublicServices,
+  getPublicMarketplaceServices,
   getDeletedServices,
   restoreService,
 } from "../services/serviceService.js";
@@ -67,6 +68,25 @@ export async function getMyServicesController(
       req.user.userId,
       String(req.params.businessId),
     );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        services,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getPublicMarketplaceServicesController(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const services = await getPublicMarketplaceServices();
 
     res.status(200).json({
       success: true,

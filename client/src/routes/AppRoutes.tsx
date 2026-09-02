@@ -9,6 +9,7 @@ import BusinessCreatePage from "../pages/BusinessCreatePage";
 import OrganizationCreatePage from "../pages/OrganizationCreatePage";
 import OrganizationManagementPage from "../pages/OrganizationManagementPage";
 import ProductsPage from "../pages/ProductsPage";
+import MarketplacePage from "../pages/MarketplacePage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import AccountTypesPage from "../pages/AccountTypesPage";
@@ -36,6 +37,7 @@ const pageTitles: Record<string, string> = {
   "/organizations/create": "DOM | Create Organization",
   "/organizations": "DOM | Organizations",
   "/products": "DOM | Products",
+  "/marketplace": "DOM | Marketplace",
   "/login": "DOM | Login",
   "/account-types": "DOM | Account Types",
   "/register": "DOM | Register",
@@ -70,6 +72,7 @@ function AppRoutes() {
           <Route path="/" element={<HomePage />} />
           <Route path="/businesses" element={<BusinessesPage />} />
           <Route path="/products" element={<ProductsPage />} />
+<Route path="/marketplace" element={<MarketplacePage />} />
 
           {/* Guest-only pages */}
           <Route element={<GuestOnlyRoute />}>

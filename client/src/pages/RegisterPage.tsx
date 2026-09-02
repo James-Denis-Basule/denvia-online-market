@@ -21,7 +21,9 @@ function RegisterPage() {
   const returnTo = searchParams.get("returnTo") || "";
 
   const accountType: AccountType =
-    requestedAccountType === "business" ? "business" : "customer";
+    requestedAccountType === "business" || searchParams.get("accountType") === "business"
+      ? "business"
+      : "customer";
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");

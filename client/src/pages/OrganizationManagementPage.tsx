@@ -199,7 +199,7 @@ useEffect(() => {
         <div className="mb-6">
           <Link
             to="/businesses"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+            className="text-sm font-medium text-blue-600 transition hover:text-blue-700 hover:font-bold"
           >
             ← Back to Businesses
           </Link>
@@ -236,7 +236,7 @@ useEffect(() => {
 
               <Link
                 to={`/organizations/${organization._id}/businesses/create`}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               >
                 + Add Business
               </Link>

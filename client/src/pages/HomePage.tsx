@@ -1,21 +1,31 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Container from '../components/layout/Container';
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import Container from "../components/layout/Container";
+import type { AccountType } from "../services/authService";
 import {
   getDiscovery,
   type DiscoveryBusiness,
   type DiscoveryData,
   type DiscoveryProduct,
   type DiscoveryService,
-} from '../services/discoveryService';
+} from "../services/discoveryService";
 
 function HomePage() {
   const [discovery, setDiscovery] = useState<DiscoveryData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+
+  const [searchParams] = useSearchParams();
+  const requestedAccountType = searchParams.get("type");
+
+  const accountType: AccountType =
+    requestedAccountType === "business" ||
+    searchParams.get("accountType") === "business"
+      ? "business"
+      : "customer";
 
   useEffect(() => {
     let mounted = true;
@@ -23,7 +33,7 @@ function HomePage() {
     async function loadDiscovery() {
       try {
         setLoading(true);
-        setError('');
+        setError("");
 
         const response = await getDiscovery();
 
@@ -32,7 +42,7 @@ function HomePage() {
         }
       } catch {
         if (mounted) {
-          setError('Unable to load marketplace discovery right now.');
+          setError("Unable to load marketplace discovery right now.");
         }
       } finally {
         if (mounted) {
@@ -75,7 +85,7 @@ function HomePage() {
             </p>
 
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link to="/register">
+              <Link to={`/register?type=${accountType !== "business" && "business"}`}>
                 <Button className="w-full bg-blue-600 text-white border-white hover:bg-blue-50 sm:w-auto">
                   Create Business
                 </Button>
@@ -141,51 +151,45 @@ function HomePage() {
 
         {!loading && !error && discovery && (
           <div className="mt-12 space-y-12">
-            {/* Featured Businesses */}
-            <PreviewSection
-              eyebrow="Discover"
-              title="Featured Businesses"
-              description="Explore businesses worth discovering on Denvia."
-              viewLabel="View all businesses"
-              viewTo="/businesses"
-            >
-              {discovery.featuredBusinesses.slice(0, 4).map((business) => (
-                <BusinessPreviewCard
-                  key={business._id}
-                  business={business}
-                />
-              ))}
-            </PreviewSection>
+            {discovery.featuredBusinesses?.length > 0 && (
+              <PreviewSection
+                eyebrow="Discover"
+                title="Featured Businesses"
+                description="Explore businesses worth discovering on Denvia."
+                viewLabel="View all businesses"
+                viewTo="/businesses"
+              >
+                {discovery.featuredBusinesses.slice(0, 4).map((business) => (
+                  <BusinessPreviewCard key={business._id} business={business} />
+                ))}
+              </PreviewSection>
+            )}
 
-            {/* Trending Products */}
-            <PreviewSection
-              eyebrow="Marketplace"
-              title="Trending Products"
-              description="See what customers are discovering across the marketplace."
-              viewLabel="Explore products"
-              viewTo="/products"
-            >
-              {discovery.trendingProducts.slice(0, 4).map((product) => (
-                <ProductPreviewCard
-                  key={product._id}
-                  product={product}
-                />
-              ))}
-            </PreviewSection>
+            {discovery.trendingProducts?.length > 0 && (
+              <PreviewSection
+                eyebrow="Marketplace"
+                title="Trending Products"
+                description="See what customers are discovering across the marketplace."
+                viewLabel="Explore products"
+                viewTo="/marketplace?type=products"
+              >
+                {discovery.trendingProducts.slice(0, 4).map((product) => (
+                  <ProductPreviewCard key={product._id} product={product} />
+                ))}
+              </PreviewSection>
+            )}
 
-            {/* New Services */}
-            <PreviewSection
-              eyebrow="Services"
-              title="New Services"
-              description="Discover new services being offered by businesses on Denvia."
-            >
-              {discovery.newServices.slice(0, 4).map((service) => (
-                <ServicePreviewCard
-                  key={service._id}
-                  service={service}
-                />
-              ))}
-            </PreviewSection>
+            {discovery.newServices?.length > 0 && (
+              <PreviewSection
+                eyebrow="Services"
+                title="New Services"
+                description="Discover new services being offered by businesses on Denvia."
+              >
+                {discovery.newServices.slice(0, 4).map((service) => (
+                  <ServicePreviewCard key={service._id} service={service} />
+                ))}
+              </PreviewSection>
+            )}
 
             {/* Final CTA */}
             <section className="overflow-hidden rounded-[2rem] bg-gray-900 px-6 py-10 text-center text-white shadow-xl sm:px-10">
@@ -202,7 +206,10 @@ function HomePage() {
                 what you offer to customers.
               </p>
 
-              <Link to="/register" className="mt-6 inline-block">
+              <Link
+                to={`/register?type=${accountType !== "business" && "business"}`}
+                className="mt-6 inline-block"
+              >
                 <Button className="bg-blue-600 text-white shadow-lg hover:bg-blue-700">
                   Create Business
                 </Button>
@@ -259,18 +266,12 @@ function PreviewSection({
         )}
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {children}
-      </div>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
     </section>
   );
 }
 
-function BusinessPreviewCard({
-  business,
-}: {
-  business: DiscoveryBusiness;
-}) {
+function BusinessPreviewCard({ business }: { business: DiscoveryBusiness }) {
   const image = business.coverImage || business.logo;
 
   return (
@@ -313,11 +314,7 @@ function BusinessPreviewCard({
   );
 }
 
-function ProductPreviewCard({
-  product,
-}: {
-  product: DiscoveryProduct;
-}) {
+function ProductPreviewCard({ product }: { product: DiscoveryProduct }) {
   const image = getMediaUrl(product.media);
 
   return (
@@ -361,7 +358,7 @@ function ProductPreviewCard({
             {product.currency} {product.price.toLocaleString()}
           </span>
 
-          {typeof product.compareAtPrice === 'number' &&
+          {typeof product.compareAtPrice === "number" &&
             product.compareAtPrice > product.price && (
               <span className="ml-2 text-sm text-gray-400 line-through">
                 {product.currency} {product.compareAtPrice.toLocaleString()}
@@ -373,11 +370,7 @@ function ProductPreviewCard({
   );
 }
 
-function ServicePreviewCard({
-  service,
-}: {
-  service: DiscoveryService;
-}) {
+function ServicePreviewCard({ service }: { service: DiscoveryService }) {
   const image = service.business?.logo;
 
   return (
@@ -502,19 +495,19 @@ function getMediaUrl(media?: unknown[]) {
 
   const primary = media.find(
     (item) =>
-      typeof item === 'object' &&
+      typeof item === "object" &&
       item !== null &&
-      'isPrimary' in item &&
+      "isPrimary" in item &&
       Boolean(item.isPrimary),
   );
 
   const candidate = primary ?? media[0];
 
   if (
-    typeof candidate === 'object' &&
+    typeof candidate === "object" &&
     candidate !== null &&
-    'url' in candidate &&
-    typeof candidate.url === 'string'
+    "url" in candidate &&
+    typeof candidate.url === "string"
   ) {
     return candidate.url;
   }

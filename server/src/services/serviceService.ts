@@ -106,6 +106,16 @@ export async function getServiceById(
   return service;
 }
 
+export async function getPublicMarketplaceServices() {
+  return Service.find({
+    status: "active",
+    isVisible: true,
+    isDeleted: false,
+  }).sort({
+    createdAt: -1,
+  });
+}
+
 export async function getPublicServices(
   businessId: string,
 ) {

@@ -35,8 +35,7 @@ function BusinessesPage() {
   const [switchError, setSwitchError] = useState("");
 
   const [showOrganizationReminder, setShowOrganizationReminder] = useState(
-    () =>
-      localStorage.getItem("organizationReminderDismissed") !== "true",
+    () => localStorage.getItem("organizationReminderDismissed") !== "true",
   );
 
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -114,67 +113,65 @@ function BusinessesPage() {
   }, [businessesLoading]);
 
   useEffect(() => {
-  if (!isAuthenticated || !isBusinessAccount) {
-    return;
-  }
+    if (!isAuthenticated || !isBusinessAccount) {
+      return;
+    }
 
-  let mounted = true;
+    let mounted = true;
 
-  async function loadOrganizations() {
-    try {
-      const response = await getMyOrganizations();
+    async function loadOrganizations() {
+      try {
+        const response = await getMyOrganizations();
 
-      if (!mounted) {
-        return;
-      }
+        if (!mounted) {
+          return;
+        }
 
-      const orgs = response.data.organizations;
+        const orgs = response.data.organizations;
 
-      setOrganizations(orgs);
+        setOrganizations(orgs);
 
-      const businessResults = await Promise.all(
-        orgs.map(async (organization) => {
-          const businessesResponse = await getOrganizationBusinesses(
-            organization._id,
-          );
+        const businessResults = await Promise.all(
+          orgs.map(async (organization) => {
+            const businessesResponse = await getOrganizationBusinesses(
+              organization._id,
+            );
 
-          return [
-            organization._id,
-            businessesResponse.data.businesses,
-          ] as const;
-        }),
-      );
+            return [
+              organization._id,
+              businessesResponse.data.businesses,
+            ] as const;
+          }),
+        );
 
-      if (!mounted) {
-        return;
-      }
+        if (!mounted) {
+          return;
+        }
 
-      setOrganizationBusinesses(Object.fromEntries(businessResults));
-    } catch {
-      if (mounted) {
-        setOrganizations([]);
-        setOrganizationBusinesses({});
+        setOrganizationBusinesses(Object.fromEntries(businessResults));
+      } catch {
+        if (mounted) {
+          setOrganizations([]);
+          setOrganizationBusinesses({});
+        }
       }
     }
-  }
 
-  void loadOrganizations();
+    void loadOrganizations();
 
-  return () => {
-    mounted = false;
-  };
-}, [isAuthenticated, isBusinessAccount]);
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, isBusinessAccount]);
 
   const discoverableBusinesses = useMemo(
-  () =>
-    businesses.filter(
-      (business) =>
-        !myBusinesses.some(
-          (myBusiness) => myBusiness._id === business._id,
-        ),
-    ),
-  [businesses, myBusinesses],
-);
+    () =>
+      businesses.filter(
+        (business) =>
+          !myBusinesses.some((myBusiness) => myBusiness._id === business._id),
+      ),
+    [businesses, myBusinesses],
+  );
 
   const filteredBusinesses = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -192,9 +189,7 @@ function BusinessesPage() {
     });
   }, [discoverableBusinesses, search]);
 
-  async function handleBusinessSwitch(
-    event: ChangeEvent<HTMLSelectElement>,
-  ) {
+  async function handleBusinessSwitch(event: ChangeEvent<HTMLSelectElement>) {
     const businessId = event.target.value;
 
     if (!businessId || businessId === activeBusiness?._id) {
@@ -223,9 +218,7 @@ function BusinessesPage() {
   ) {
     const value = (business as Record<string, unknown>).slogan;
 
-    return typeof value === "string" && value.trim()
-      ? value.trim()
-      : undefined;
+    return typeof value === "string" && value.trim() ? value.trim() : undefined;
   }
 
   return (
@@ -255,9 +248,7 @@ function BusinessesPage() {
 
                     <div className="min-w-0">
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
-                        {isOrganizationUser
-                          ? "Organization"
-                          : "My Businesses"}
+                        {isOrganizationUser ? "Organization" : "My Businesses"}
                       </p>
 
                       <h1 className="mt-1 truncate text-2xl font-bold sm:text-3xl">
@@ -379,8 +370,8 @@ function BusinessesPage() {
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-blue-100">
-                        You can create and manage multiple businesses on
-                        Denvia, or organize them under an organization.
+                        You can create and manage multiple businesses on Denvia,
+                        or organize them under an organization.
                       </p>
                     </div>
 
@@ -472,9 +463,7 @@ function BusinessesPage() {
                     🏪
                   </div>
 
-                  <h2 className="mt-5 text-xl font-bold">
-                    Just one business
-                  </h2>
+                  <h2 className="mt-5 text-xl font-bold">Just one business</h2>
 
                   <p className="mt-2 text-sm leading-6 text-gray-600">
                     Manage a single business independently.
@@ -532,19 +521,18 @@ function BusinessesPage() {
 
                 {!loading && !discoveryError && (
                   <div className="shrink-0 rounded-full bg-gray-100 px-3.5 py-1.5 text-sm font-semibold text-gray-700">
-                    {filteredBusinesses.length}{" "}
+                    {filteredBusinesses.length <= 100 && filteredBusinesses.length}{" "}
                     {filteredBusinesses.length === 1
                       ? "business"
-                      : "businesses"}
+                      : filteredBusinesses.length > 100
+                        ? "100+ Businesses"
+                        : "businesses"}
                   </div>
                 )}
               </div>
 
               <div className="relative">
-                <label
-                  htmlFor="business-search"
-                  className="sr-only"
-                >
+                <label htmlFor="business-search" className="sr-only">
                   Search businesses
                 </label>
 
@@ -572,9 +560,7 @@ function BusinessesPage() {
 
         {!loading && discoveryError && (
           <Card className="mt-8 text-center">
-            <p className="font-medium text-red-600">
-              {discoveryError}
-            </p>
+            <p className="font-medium text-red-600">{discoveryError}</p>
           </Card>
         )}
 
@@ -586,12 +572,16 @@ function BusinessesPage() {
               </p>
 
               <h2 className="mt-1 text-2xl font-bold text-gray-900">
-                {search ? "Search results" : "Other Businesses"}
+                {search
+                  ? "Search results"
+                  : isAuthenticated
+                    ? "Other Businesses"
+                    : "Businesses"}
               </h2>
 
               <p className="mt-1 text-sm text-gray-600">
-                Explore businesses on Denvia. Your own businesses are not
-                shown here.
+                Explore businesses on Denvia.{" "}
+                {isAuthenticated && "Your own businesses are not shown here."}
               </p>
             </div>
 
