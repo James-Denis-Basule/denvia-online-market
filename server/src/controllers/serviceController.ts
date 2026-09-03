@@ -64,16 +64,19 @@ export async function getMyServicesController(
       throw new AppError("Authentication required", 401);
     }
 
-    const services = await getMyServices(
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
+
+    const result = await getMyServices(
       req.user.userId,
       String(req.params.businessId),
+      page,
+      limit,
     );
 
     res.status(200).json({
       success: true,
-      data: {
-        services,
-      },
+      data: result,
     });
   } catch (error) {
     next(error);

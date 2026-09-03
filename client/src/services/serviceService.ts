@@ -49,18 +49,44 @@ interface ServiceResponse {
 }
 
 interface ServicesResponse {
+
   success: boolean;
+
   data: {
+
     services: Service[];
+
+    pagination?: {
+
+      page: number;
+
+      limit: number;
+
+      totalServices: number;
+
+      totalPages: number;
+
+    };
+
   };
+
 }
 
-export async function getMyServices(businessId: string) {
+export async function getMyServices(
+  businessId: string,
+  page = 1,
+  limit = 12,
+) {
+
   const token = localStorage.getItem("accessToken");
 
   const response = await api.get<ServicesResponse>(
     `/services/business/${businessId}`,
     {
+      params: {
+        page,
+        limit,
+      },
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -69,7 +95,6 @@ export async function getMyServices(businessId: string) {
 
   return response.data;
 }
-
 export async function createService(input: CreateServiceInput) {
   const token = localStorage.getItem("accessToken");
 

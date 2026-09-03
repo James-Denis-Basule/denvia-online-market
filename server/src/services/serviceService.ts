@@ -69,18 +69,40 @@ export async function createService(
 export async function getMyServices(
   ownerId: string,
   businessId: string,
+  page = 1,
+  limit = 12,
 ) {
   await verifyBusinessOwnership(
     businessId,
     ownerId,
   );
 
-  return Service.find({
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.min(50, Math.max(1, limit));
+  const skip = (safePage - 1) * safeLimit;
+
+  const filter = {
     businessId,
     isDeleted: false,
-  }).sort({
-    name: 1,
-  });
+  };
+
+  const [services, totalServices] = await Promise.all([
+    Service.find(filter)
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(safeLimit),
+    Service.countDocuments(filter),
+  ]);
+
+  return {
+    services,
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      totalServices,
+      totalPages: Math.max(1, Math.ceil(totalServices / safeLimit)),
+    },
+  };
 }
 
 export async function getServiceById(

@@ -95,6 +95,15 @@ function ServiceManagementPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [servicePage, setServicePage] = useState(1);
+  const SERVICE_PAGE_SIZE = 12;
+
+  const [servicePagination, setServicePagination] = useState({
+    page: 1,
+    limit: SERVICE_PAGE_SIZE,
+    totalServices: 0,
+    totalPages: 1,
+  });
 
   const loadServices = useCallback(async () => {
     if (!activeBusiness?._id) {
@@ -108,11 +117,23 @@ function ServiceManagementPage() {
 
     try {
       const [response, binResponse] = await Promise.all([
-        getMyServices(activeBusiness._id),
+        getMyServices(
+          activeBusiness._id,
+          servicePage,
+          SERVICE_PAGE_SIZE,
+        ),
         getDeletedServices(activeBusiness._id),
       ]);
 
       setServices(response.data?.services ?? []);
+      setServicePagination(
+        response.data?.pagination ?? {
+          page: servicePage,
+          limit: SERVICE_PAGE_SIZE,
+          totalServices: response.data?.services?.length ?? 0,
+          totalPages: 1,
+        },
+      );
       setDeletedServices(binResponse.data?.services ?? []);
     } catch {
       setError("Unable to load your services right now.");
@@ -120,7 +141,7 @@ function ServiceManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeBusiness]);
+  }, [activeBusiness, servicePage]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -299,6 +320,10 @@ function ServiceManagementPage() {
     hidden: services.filter((service) => !service.isVisible).length,
     deleted: deletedServices.length,
   };
+
+  useEffect(() => {
+    setServicePage(1);
+  }, [serviceFilter, activeBusiness?._id]);
 
   const emptyState = {
     all: {
@@ -845,37 +870,24 @@ function ServiceManagementPage() {
                               Restore
                             </button>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                navigate(`/services/edit/${service._id}`)
-                              }
-                              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                            >
-                              Edit
-                            </button>
-                          )}
-
-                          {serviceFilter !== "deleted" && (
                             <>
                               <button
                                 type="button"
-                                disabled={isWorking}
-                                onClick={() => void handleToggleStatus(service)}
-                                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                onClick={() =>
+                                  navigate(`/services/edit/${service._id}`)
+                                }
+                                className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                               >
-                                {service.status === "active"
-                                  ? "Archive"
-                                  : "Activate"}
+                                Edit
                               </button>
 
                               <button
                                 type="button"
                                 disabled={isWorking}
-                                onClick={() =>
-                                  void handleToggleVisibility(service)
-                                }
-                                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                onClick={() => {
+                                  void handleToggleVisibility(service);
+                                }}
+                                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                               >
                                 {service.isVisible ? "Hide" : "Show"}
                               </button>
@@ -883,33 +895,87 @@ function ServiceManagementPage() {
                               <button
                                 type="button"
                                 disabled={isWorking}
-                                onClick={() => void handleDelete(service)}
-                                className="rounded-lg px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                onClick={() => {
+                                  void handleToggleStatus(service);
+                                }}
+                                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                {service.status === "active" ? "Archive" : "Activate"}
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={isWorking}
+                                onClick={() => {
+                                  void handleDelete(service);
+                                }}
+                                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
                               >
                                 Delete
                               </button>
                             </>
                           )}
-                        </div>
 
-                        <div className="mt-4 border-t border-gray-100 pt-3">
-                          <span
-                            className={`text-xs font-medium ${
-                              service.isVisible
-                                ? "text-green-600"
-                                : "text-gray-500"
-                            }`}
-                          >
-                            {service.isVisible
-                              ? "Visible to customers"
-                              : "Hidden from customers"}
-                          </span>
                         </div>
                       </article>
                     );
                   })}
                 </div>
               )}
+
+              {serviceFilter !== "deleted" &&
+                servicePagination.totalPages > 1 && (
+                  <div className="mt-8 flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setServicePage((page) => Math.max(1, page - 1))
+                      }
+                      disabled={servicePage === 1 || loading}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+
+                    {Array.from(
+                      { length: servicePagination.totalPages },
+                      (_, index) => index + 1,
+                    ).map((page) => (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => setServicePage(page)}
+                        disabled={loading}
+                        className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm font-semibold transition ${
+                          servicePage === page
+                            ? "bg-blue-600 text-white"
+                            : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setServicePage((page) =>
+                          Math.min(
+                            servicePagination.totalPages,
+                            page + 1,
+                          ),
+                        )
+                      }
+                      disabled={
+                        servicePage >= servicePagination.totalPages ||
+                        loading
+                      }
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
             </section>
           </>
         )}
