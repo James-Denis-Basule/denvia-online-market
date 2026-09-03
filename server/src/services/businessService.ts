@@ -91,10 +91,18 @@ export async function createBusiness(
     );
   }
 
+  if (!user.accountTypes.includes("business")) {
+    user.accountTypes.push("business");
+  }
+
+  user.activeAccountType = "business";
+  user.role = "business_owner";
+
   if (!user.activeBusinessId) {
     user.activeBusinessId = business._id;
-    await user.save();
   }
+
+  await user.save();
 
   return business;
 }

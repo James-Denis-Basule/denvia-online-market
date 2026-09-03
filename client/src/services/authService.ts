@@ -15,6 +15,7 @@ export interface AuthUser {
   email: string;
   phone?: string;
   accountTypes: AccountType[];
+  activeAccountType: AccountType;
   role: string;
   isEmailVerified: boolean;
   isActive?: boolean;
@@ -94,4 +95,22 @@ export async function logoutUser() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("authUser");
   }
+}
+
+export async function switchAccountType(
+  accountType: AccountType,
+) {
+  const token = localStorage.getItem("accessToken");
+
+  const response = await api.post(
+    "/auth/switch-account",
+    { accountType },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  return response.data;
 }

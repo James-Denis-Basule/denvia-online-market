@@ -15,6 +15,7 @@ export interface IUser extends Document {
   password: string;
   phone?: string;
   accountTypes: AccountType[];
+  activeAccountType: AccountType;
   role: UserRole;
   isActive: boolean;
   isEmailVerified: boolean;
@@ -71,6 +72,13 @@ const userSchema = new Schema<IUser>(
       type: [String],
       enum: ["customer", "business"],
       default: ["customer"],
+      required: true,
+    },
+
+    activeAccountType: {
+      type: String,
+      enum: ["customer", "business"],
+      default: "customer",
       required: true,
     },
 

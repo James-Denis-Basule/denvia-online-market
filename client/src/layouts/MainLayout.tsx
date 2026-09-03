@@ -5,7 +5,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 
 const LOGO_URL =
@@ -18,7 +18,12 @@ function MainLayout() {
 
   const isAuthenticated = Boolean(auth?.isAuthenticated);
   const isBusinessAccount =
+    isAuthenticated && auth?.user?.activeAccountType === "business";
+
+  const hasBusinessAccount =
     isAuthenticated && Boolean(auth?.user?.accountTypes?.includes("business"));
+
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const isDashboard = location.pathname.startsWith("/dashboard");
   const homeDestination = isBusinessAccount ? "/dashboard" : "/";
 
@@ -68,6 +73,26 @@ function MainLayout() {
 
     await auth.logout();
     navigate("/login");
+  };
+
+  const handleAccountSwitch = async (accountType: "customer" | "business") => {
+    if (!auth || accountType === auth.user?.activeAccountType) {
+      setAccountMenuOpen(false);
+      return;
+    }
+
+    try {
+      await auth.switchAccountType(accountType);
+      setAccountMenuOpen(false);
+
+      if (accountType === "business") {
+        navigate("/dashboard");
+      } else {
+        navigate("/marketplace");
+      }
+    } catch (error) {
+      console.error("Failed to switch account mode:", error);
+    }
   };
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -132,139 +157,156 @@ function MainLayout() {
               </NavLink>
             ))}
 
-            {!isAuthenticated ? (
-              <div className="ml-3 flex items-center gap-2 border-l border-gray-200 pl-3">
-                <NavLink to="/login" className={navLinkClass}>
-                  Login
-                </NavLink>
-
-                <Link
-                  to="/register"
-                  className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200/70"
+            {isAuthenticated ? (
+              <div className="relative ml-3 border-l border-gray-200 pl-3">
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((open) => !open)}
+                  className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5 transition hover:border-blue-200 hover:bg-blue-50"
+                  aria-expanded={accountMenuOpen}
+                  aria-haspopup="menu"
                 >
-                  Get Started
-                </Link>
-              </div>
-            ) : (
-              <div className="ml-3 flex items-center gap-2 border-l border-gray-200 pl-3">
-                <div className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50/80 px-2.5 py-1.5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-sm">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
                     {userInitial}
                   </span>
 
-                  <div className="hidden max-w-32 lg:block">
-                    <p className="truncate text-xs font-bold text-gray-900">
+                  <div className="hidden text-left lg:block">
+                    <p className="max-w-[130px] truncate text-sm font-semibold text-gray-900">
                       {userName || "Account"}
                     </p>
-
-                    <p className="text-[10px] font-medium text-gray-500">
-                      {auth?.user?.accountTypes?.includes("business")
-                        ? "Business account"
-                        : "Customer account"}
+                    <p className="text-[11px] text-gray-500">
+                      {isBusinessAccount ? "Business mode" : "Customer mode"}
                     </p>
                   </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={() => void handleLogout()}
-                  className="rounded-2xl px-3 py-2 text-sm font-semibold text-gray-500 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
-                >
-                  Logout
+                  <span className="text-xs text-gray-500">
+                    {accountMenuOpen ? "▲" : "▼"}
+                  </span>
                 </button>
-              </div>
-            )}
-          </nav>
 
-          <div className="flex items-center gap-2 md:hidden">
-            {isAuthenticated ? (
-              <>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-sm">
-                  {userInitial}
-                </span>
-
-                {isBusinessAccount && (
-                  <Link
-                    to="/dashboard"
-                    className={[
-                      "rounded-2xl px-3 py-2 text-xs font-bold transition-all",
-                      isDashboard
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-blue-50 text-blue-700 hover:bg-blue-100",
-                    ].join(" ")}
+                {accountMenuOpen && (
+                  <div
+                    className="absolute right-0 top-[calc(100%+8px)] z-50 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-xl"
+                    role="menu"
                   >
-                    Dashboard
-                  </Link>
+                    <div className="px-3 py-2">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {userName || "Account"}
+                      </p>
+                      <p className="truncate text-xs text-gray-500">
+                        {auth?.user?.email}
+                      </p>
+                    </div>
+
+                    {hasBusinessAccount && (
+                      <>
+                        <div className="my-1 border-t border-gray-100" />
+
+                        <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                          Switch account
+                        </p>
+
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => void handleAccountSwitch("customer")}
+                          className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-gray-50"
+                        >
+                          <span className="font-medium text-gray-700">
+                            Customer
+                          </span>
+                          {auth?.user?.activeAccountType === "customer" && (
+                            <span className="font-bold text-blue-600">✓</span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => void handleAccountSwitch("business")}
+                          className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-blue-50"
+                        >
+                          <span className="font-medium text-gray-700">
+                            Business
+                          </span>
+                          {auth?.user?.activeAccountType === "business" && (
+                            <span className="font-bold text-blue-600">✓</span>
+                          )}
+                        </button>
+                      </>
+                    )}
+
+                    <div className="my-1 border-t border-gray-100" />
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        navigate("/account");
+                      }}
+                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                    >
+                      Account settings
+                    </button>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void handleLogout()}
+                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
+                    >
+                      Logout
+                    </button>
+                  </div>
                 )}
-              </>
+              </div>
             ) : (
-              <Link
-                to="/login"
-                className="rounded-2xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-700"
-              >
-                Login
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <div className="border-t border-gray-200/60 bg-white/70 backdrop-blur-xl md:hidden">
-          <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] sm:px-6 lg:px-8">
-            {navigation.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === "/"}
-                className={mobileNavLinkClass}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-
-            {!isAuthenticated ? (
-              <Link
-                to="/register"
-                className="whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
-              >
-                Get Started
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void handleLogout()}
-                className="whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50"
-              >
-                Logout
-              </button>
+              <div className="ml-3 flex items-center gap-2 border-l border-gray-200 pl-3">
+                <Link
+                  to="/login"
+                  className="rounded-2xl px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-950"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/register"
+                  className="rounded-2xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  Sign up
+                </Link>
+              </div>
             )}
           </nav>
         </div>
       </header>
 
-      {isDashboard && isAuthenticated && (
-        <div className="border-b border-blue-100/80 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-blue-100">
-                <img
-                  src={LOGO_URL}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-full w-full object-contain"
-                />
-              </span>
+      <>
+        {isDashboard && isAuthenticated && (
+          <div className="border-b border-blue-100/80 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-blue-100">
+                  <img
+                    src={LOGO_URL}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-full w-full object-contain"
+                  />
+                </span>
 
-              <span className="text-xs font-bold uppercase tracking-[0.16em] text-blue-800">
-                Business Center
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-blue-800">
+                  Business Center
+                </span>
+              </div>
+
+              <span className="hidden text-xs font-medium text-blue-700 sm:block">
+                Manage your business, orders and growth
               </span>
             </div>
-
-            <span className="hidden text-xs font-medium text-blue-700 sm:block">
-              Manage your business, orders and growth
-            </span>
           </div>
-        </div>
-      )}
+        )}
+      </>
 
       <main className="flex-1">
         <Outlet />

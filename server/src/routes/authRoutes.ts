@@ -4,6 +4,7 @@ import {
   login,
   logout,
   refreshAccessToken,
+  switchAccountType,
   register,
   verifyEmailAddress,
 } from '../controllers/authController.js';
@@ -15,6 +16,7 @@ router.post("/register", register);
 router.post("/verify-email", verifyEmailAddress);
 router.post("/login", login);
 router.post("/refresh", refreshAccessToken);
+router.post("/switch-account", authenticate, switchAccountType);
 router.get("/me", authenticate, getCurrentUser);
 router.post("/logout", logout);
 
