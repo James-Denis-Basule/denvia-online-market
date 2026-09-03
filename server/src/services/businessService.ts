@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 import Product from "../models/Product.js";
 import Business from "../models/Business.js";
+import BusinessStaff from "../models/BusinessStaff.js";
 import User from "../models/User.js";
 import Organization from "../models/Organization.js";
 
@@ -15,6 +16,36 @@ import type {
 } from "../types/business.js";
 
 import type { PublicProductQueryInput } from "../types/product.js";
+
+export async function getBusinessAccessLevel(
+  businessId: string,
+  userId: string,
+): Promise<"owner" | "manager" | "staff" | null> {
+  const business = await Business.findOne({
+    _id: businessId,
+    status: { $ne: "suspended" },
+  }).select("ownerId");
+
+  if (!business) {
+    return null;
+  }
+
+  if (business.ownerId.toString() === userId) {
+    return "owner";
+  }
+
+  const membership = await BusinessStaff.findOne({
+    businessId,
+    userId,
+    status: "active",
+  }).select("role");
+
+  if (!membership) {
+    return null;
+  }
+
+  return membership.role;
+}
 
 export async function createBusiness(
   ownerId: string,
@@ -95,7 +126,6 @@ export async function createBusiness(
     user.accountTypes.push("business");
   }
 
-  user.activeAccountType = "business";
   user.role = "business_owner";
 
   if (!user.activeBusinessId) {

@@ -152,7 +152,6 @@ export async function getCurrentUser(
           email: user.email,
           phone: user.phone,
           accountTypes: user.accountTypes,
-          activeAccountType: user.activeAccountType,
           role: user.role,
           isActive: user.isActive,
           isEmailVerified: user.isEmailVerified,
@@ -168,90 +167,6 @@ export async function getCurrentUser(
             logo: activeBusiness.logo,
           }
         : null,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function switchAccountType(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-) {
-  try {
-    if (!req.user) {
-      throw new AppError("Authentication required", 401);
-    }
-
-    const requestedType = req.body?.accountType;
-
-    if (requestedType !== "customer" && requestedType !== "business") {
-      throw new AppError("Invalid account type", 400);
-    }
-
-    const user = await User.findById(req.user.userId).select("+refreshToken");
-
-    if (!user) {
-      throw new AppError("User account not found", 404);
-    }
-
-    if (!user.accountTypes.includes(requestedType)) {
-      throw new AppError(
-        `You do not have a ${requestedType} account`,
-        403,
-      );
-    }
-
-    if (requestedType === "business") {
-      const business = await Business.findOne({
-        ownerId: user._id,
-        status: { $ne: "suspended" },
-      });
-
-      if (!business) {
-        throw new AppError(
-          "Create a business before switching to Business mode",
-          403,
-        );
-      }
-
-      user.activeBusinessId = business._id;
-      user.activeAccountType = "business";
-      user.role = "business_owner";
-    } else {
-      user.activeAccountType = "customer";
-      user.role = "user";
-    }
-
-    await user.save();
-
-    const accessToken = (
-      await import("../utils/jwt.js")
-    ).generateAccessToken({
-      userId: user._id.toString(),
-      role: user.role,
-      activeAccountType: user.activeAccountType,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: `Switched to ${requestedType} mode`,
-      data: {
-        accessToken,
-        user: {
-          id: user._id.toString(),
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          accountTypes: user.accountTypes,
-          activeAccountType: user.activeAccountType,
-          role: user.role,
-          isActive: user.isActive,
-          isEmailVerified: user.isEmailVerified,
-        },
-      },
     });
   } catch (error) {
     next(error);

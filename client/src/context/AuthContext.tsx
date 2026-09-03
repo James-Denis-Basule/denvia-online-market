@@ -14,7 +14,6 @@ import {
   loginUser,
   logoutUser,
   registerUser,
-  switchAccountType,
 } from '../services/authService';
 import { mergeGuestCart } from '../services/commerceService';
 
@@ -41,7 +40,6 @@ interface AuthContextValue {
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<AuthUser | null>;
-  switchAccountType: (accountType: AccountType) => Promise<AuthUser>;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(
@@ -146,22 +144,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await registerUser(payload);
   }, []);
 
-  const switchAccountMode = useCallback(
-    async (accountType: AccountType) => {
-      const response = await switchAccountType(accountType);
-      const switchedUser = response.data.user;
-      const switchedToken = response.data.accessToken;
-
-      localStorage.setItem('accessToken', switchedToken);
-      localStorage.setItem('authUser', JSON.stringify(switchedUser));
-
-      setAccessToken(switchedToken);
-      setUser(switchedUser);
-
-      return switchedUser;
-    },
-    [],
-  );
 
   const logout = useCallback(async () => {
     try {
@@ -169,6 +151,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setAccessToken(null);
       setUser(null);
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("authUser");
     }
   }, []);
 
@@ -182,7 +166,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       register,
       logout,
       refreshUser,
-      switchAccountType: switchAccountMode,
     }),
     [
       user,
@@ -192,7 +175,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       register,
       logout,
       refreshUser,
-      switchAccountMode,
     ],
   );
 

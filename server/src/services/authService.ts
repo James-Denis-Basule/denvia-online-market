@@ -145,7 +145,6 @@ export async function loginUser(email: string, password: string) {
   const accessToken = generateAccessToken({
     userId: user._id.toString(),
     role: user.role,
-    activeAccountType: user.activeAccountType,
   });
 
   const refreshToken = generateRefreshToken(
@@ -166,8 +165,7 @@ export async function loginUser(email: string, password: string) {
       email: user.email,
       phone: user.phone,
       accountTypes: user.accountTypes,
-      activeAccountType: user.activeAccountType,
-      role: user.role,
+        role: user.role,
       isEmailVerified: user.isEmailVerified,
     },
   };
@@ -219,7 +217,6 @@ export async function refreshUserAccessToken(
   const accessToken = generateAccessToken({
     userId: user._id.toString(),
     role: user.role,
-    activeAccountType: user.activeAccountType,
   });
 
   /*

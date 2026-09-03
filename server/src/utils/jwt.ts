@@ -4,7 +4,6 @@ import authConfig from '../config/auth.js';
 export interface AccessTokenPayload {
   userId: string;
   role: string;
-  activeAccountType?: "customer" | "business";
 }
 
 export function generateAccessToken(

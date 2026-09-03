@@ -18,10 +18,8 @@ function MainLayout() {
 
   const isAuthenticated = Boolean(auth?.isAuthenticated);
   const isBusinessAccount =
-    isAuthenticated && auth?.user?.activeAccountType === "business";
-
-  const hasBusinessAccount =
     isAuthenticated && Boolean(auth?.user?.accountTypes?.includes("business"));
+
 
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const isDashboard = location.pathname.startsWith("/dashboard");
@@ -75,25 +73,6 @@ function MainLayout() {
     navigate("/login");
   };
 
-  const handleAccountSwitch = async (accountType: "customer" | "business") => {
-    if (!auth || accountType === auth.user?.activeAccountType) {
-      setAccountMenuOpen(false);
-      return;
-    }
-
-    try {
-      await auth.switchAccountType(accountType);
-      setAccountMenuOpen(false);
-
-      if (accountType === "business") {
-        navigate("/dashboard");
-      } else {
-        navigate("/marketplace");
-      }
-    } catch (error) {
-      console.error("Failed to switch account mode:", error);
-    }
-  };
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     [
@@ -101,14 +80,6 @@ function MainLayout() {
       isActive
         ? "bg-blue-50 text-blue-700"
         : "text-gray-600 hover:bg-gray-50 hover:text-gray-950",
-    ].join(" ");
-
-  const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
-    [
-      "whitespace-nowrap rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all duration-200",
-      isActive
-        ? "bg-blue-600 text-white shadow-sm"
-        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
     ].join(" ");
 
   return (
@@ -175,7 +146,7 @@ function MainLayout() {
                       {userName || "Account"}
                     </p>
                     <p className="text-[11px] text-gray-500">
-                      {isBusinessAccount ? "Business mode" : "Customer mode"}
+                      {isBusinessAccount ? "Business account" : "Customer account"}
                     </p>
                   </div>
 
@@ -197,48 +168,33 @@ function MainLayout() {
                         {auth?.user?.email}
                       </p>
                     </div>
-
-                    {hasBusinessAccount && (
-                      <>
-                        <div className="my-1 border-t border-gray-100" />
-
-                        <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                          Switch account
-                        </p>
-
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => void handleAccountSwitch("customer")}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-gray-50"
-                        >
-                          <span className="font-medium text-gray-700">
-                            Customer
-                          </span>
-                          {auth?.user?.activeAccountType === "customer" && (
-                            <span className="font-bold text-blue-600">✓</span>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => void handleAccountSwitch("business")}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-blue-50"
-                        >
-                          <span className="font-medium text-gray-700">
-                            Business
-                          </span>
-                          {auth?.user?.activeAccountType === "business" && (
-                            <span className="font-bold text-blue-600">✓</span>
-                          )}
-                        </button>
-                      </>
+                    {isBusinessAccount ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          navigate("/dashboard");
+                        }}
+                        className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-blue-50"
+                      >
+                        Business Dashboard
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          navigate("/businesses/new");
+                        }}
+                        className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-blue-600 transition hover:bg-blue-50"
+                      >
+                        Become a Business
+                      </button>
                     )}
-
                     <div className="my-1 border-t border-gray-100" />
-
-                    <button
+<button
                       type="button"
                       role="menuitem"
                       onClick={() => {
