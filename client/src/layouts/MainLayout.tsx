@@ -5,7 +5,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 
 const LOGO_URL =
@@ -22,6 +22,26 @@ function MainLayout() {
 
 
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target as Node)
+      ) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [accountMenuOpen]);
   const isDashboard = location.pathname.startsWith("/dashboard");
   const homeDestination = isBusinessAccount ? "/dashboard" : "/";
 
@@ -129,7 +149,7 @@ function MainLayout() {
             ))}
 
             {isAuthenticated ? (
-              <div className="relative ml-3 border-l border-gray-200 pl-3">
+              <div ref={accountMenuRef} className="relative ml-3 border-l border-gray-200 pl-3">
                 <button
                   type="button"
                   onClick={() => setAccountMenuOpen((open) => !open)}

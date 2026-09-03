@@ -133,7 +133,7 @@ router.get(
  */
 router.patch(
   "/my/:id",
-  requireBusinessManageAccess("id"),
+  authenticate,
   updateBusinessController,
 );
 
@@ -142,7 +142,7 @@ router.patch(
  */
 router.delete(
   "/:id",
-  requireBusinessManageAccess("id"),
+  authenticate,
   deleteBusinessController,
 );
 
