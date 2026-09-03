@@ -290,6 +290,28 @@ function BusinessCreatePage() {
           )}
         </section>
 
+        {submitting ? (
+          <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm sm:p-12">
+            <div className="mx-auto flex max-w-md flex-col items-center text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+              </div>
+
+              <h2 className="mt-6 text-2xl font-bold text-gray-900">
+                Creating your business...
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-gray-500">
+                We’re setting up your business profile. Please wait while
+                everything is being created.
+              </p>
+
+              <div className="mt-6 w-full rounded-xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+                Please don’t close or refresh this page.
+              </div>
+            </div>
+          </section>
+        ) : (
         <form
           onSubmit={handleSubmit}
           className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8"
@@ -570,6 +592,7 @@ function BusinessCreatePage() {
             </button>
           </div>
         </form>
+        )}
       </Container>
     </main>
   );

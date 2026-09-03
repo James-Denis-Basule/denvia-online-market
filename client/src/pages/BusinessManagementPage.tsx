@@ -207,38 +207,47 @@ function BusinessManagementPage() {
                         </p>
                       )}
 
-                      <div className="mt-5 grid grid-cols-2 gap-2">
-                        {!isActive && (
-                          <button
-                            type="button"
-                            disabled={isWorking}
-                            onClick={() => void handleSelect(business._id)}
-                            className="rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      <div className="mt-5">
+                        <div className="grid grid-cols-2 gap-2">
+                          {!isActive && (
+                            <button
+                              type="button"
+                              disabled={isWorking}
+                              onClick={() => void handleSelect(business._id)}
+                              className="w-full rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isWorking ? "Switching..." : "Make active"}
+                            </button>
+                          )}
+
+                          <Link
+                            to={`/businesses/edit/${business._id}`}
+                            className={`${
+                              isActive ? "col-span-2" : ""
+                            } block w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50`}
                           >
-                            {isWorking ? "Switching..." : "Make active"}
-                          </button>
-                        )}
+                            Edit
+                          </Link>
+                        </div>
 
                         <Link
                           to="/dashboard"
-                          className={`rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100 ${
-                            isActive ? "col-span-2" : ""
-                          }`}
+                          className="mt-3 block w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-center text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
                         >
                           Open dashboard
                         </Link>
-                      </div>
 
-                      <button
-                        type="button"
-                        disabled={isWorking}
-                        onClick={() =>
-                          void handleDelete(business._id, business.name)
-                        }
-                        className="mt-3 w-full rounded-xl px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Delete business
-                      </button>
+                        <button
+                          type="button"
+                          disabled={isWorking}
+                          onClick={() =>
+                            void handleDelete(business._id, business.name)
+                          }
+                          className="mt-3 w-full rounded-xl px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Delete business
+                        </button>
+                      </div>
                     </div>
                   </article>
                 );

@@ -6,6 +6,7 @@ import HomePage from "../pages/HomePage";
 import BusinessesPage from "../pages/BusinessesPage";
 import BusinessManagementPage from "../pages/BusinessManagementPage";
 import BusinessCreatePage from "../pages/BusinessCreatePage";
+import BusinessEditPage from "../pages/BusinessEditPage";
 import OrganizationCreatePage from "../pages/OrganizationCreatePage";
 import OrganizationManagementPage from "../pages/OrganizationManagementPage";
 import ProductsPage from "../pages/ProductsPage";
@@ -34,6 +35,7 @@ const pageTitles: Record<string, string> = {
   "/businesses": "DOM | Businesses",
   "/businesses/manage": "DOM | Manage Businesses",
   "/businesses/create": "DOM | Create Business",
+  "/businesses/edit": "DOM | Edit Business",
   "/organizations/create": "DOM | Create Organization",
   "/organizations": "DOM | Organizations",
   "/products": "DOM | Products",
@@ -130,6 +132,10 @@ function AppRoutes() {
               <Route
                 path="/businesses/manage"
                 element={<BusinessManagementPage />}
+              />
+              <Route
+                path="/businesses/edit/:id"
+                element={<BusinessEditPage />}
               />
             </Route>
           </Route>
