@@ -22,6 +22,22 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("authUser");
+
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 export function getApiErrorMessage(
   error: unknown,
   fallback = 'Something went wrong. Please try again.',
