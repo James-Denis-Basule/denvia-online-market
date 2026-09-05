@@ -27,6 +27,8 @@ export type OrderStatus =
 
 export type Order = {
   _id?: string;
+  orderReference?: string;
+  guestTrackingToken?: string;
   userId?: string;
   items: CartItem[];
   status: OrderStatus;

@@ -105,7 +105,9 @@ function OrderDetailPage() {
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Order</p>
-            <h1 className="text-3xl font-bold text-gray-900">#{order._id}</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {order.orderReference ?? `#${order._id}`}
+            </h1>
           </div>
           <span
             className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusStyles[order.status] ?? 'bg-gray-100 text-gray-800'}`}

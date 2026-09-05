@@ -47,7 +47,9 @@ function OrdersPage() {
               <Card key={order._id} className="space-y-4">
                 <div className="flex flex-col justify-between gap-3 md:flex-row">
                   <div>
-                    <p className="text-sm text-gray-500">Order #{order._id}</p>
+                    <p className="text-sm text-gray-500">
+                      Order {order.orderReference ?? `#${order._id}`}
+                    </p>
                     <h2 className="text-xl font-semibold text-gray-900">
                       UGX {order.total.toLocaleString()}
                     </h2>

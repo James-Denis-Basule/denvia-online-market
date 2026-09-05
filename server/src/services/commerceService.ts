@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Business from "../models/Business.js";
+import BusinessStaff from "../models/BusinessStaff.js";
 import User from "../models/User.js";
 import Cart from "../models/Cart.js";
 import Order, { type OrderStatus } from "../models/Order.js";
@@ -575,7 +576,7 @@ export async function getOrderByIdForUser(userId: string, orderId: string) {
 }
 
 function requireSellerRole(actor: CommerceActor) {
-  if (actor.role !== "business_owner") {
+  if (!["business_owner", "business_staff", "admin"].includes(actor.role)) {
     throw new AppError("Business owner access required", 403);
   }
 }
@@ -594,21 +595,39 @@ async function getOwnedBusinessIds(
     throw new AppError("Valid businessId is required", 400);
   }
 
-  const ownedBusinesses = await Business.find({ ownerId: actor.userId })
-    .select("_id")
-    .lean();
-  const ownedIds = ownedBusinesses.map((business) => String(business._id));
+  // Admins can operate on any business — the requested IDs are trusted
+  // as-is, or admins must specify which businesses they mean (no
+  // implicit "all businesses" fetch, to keep responses scoped).
+  if (actor.role === "admin") {
+    if (!requestedIds.length) {
+      throw new AppError("businessIds is required for admin access", 400);
+    }
+
+    return requestedIds;
+  }
+
+  const [ownedBusinesses, staffMemberships] = await Promise.all([
+    Business.find({ ownerId: actor.userId }).select("_id").lean(),
+    BusinessStaff.find({
+      userId: actor.userId,
+      status: "active",
+    }).select("businessId").lean(),
+  ]);
+
+  const ownedIds = new Set([
+    ...ownedBusinesses.map((business) => String(business._id)),
+    ...staffMemberships.map((membership) => String(membership.businessId)),
+  ]);
 
   if (requestedIds.length > 0) {
-    const ownedIdSet = new Set(ownedIds);
-    if (requestedIds.some((businessId) => !ownedIdSet.has(businessId))) {
+    if (requestedIds.some((businessId) => !ownedIds.has(businessId))) {
       throw new AppError("You are not authorized to operate one or more businesses", 403);
     }
 
     return requestedIds;
   }
 
-  return ownedIds;
+  return [...ownedIds];
 }
 
 /**
@@ -802,16 +821,36 @@ export async function getSellerDashboardSummary(actor: CommerceActor, businessId
     .map((businessId) => new mongoose.Types.ObjectId(businessId));
 
   const orders = await Order.find({
-    $and: [
-      { items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } } },
-      { items: { $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } } } },
-    ],
+    items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } },
   })
     .sort({ createdAt: -1 })
     .limit(25)
     .lean();
 
-  return buildSellerDashboardSummary(orders as Parameters<typeof buildSellerDashboardSummary>[0]);
+  const businessIdSet = new Set(normalizedBusinessIds.map((id) => String(id)));
+
+  // A cart can span multiple businesses. Revenue for THIS seller must
+  // only count their own items, never the full multi-vendor order
+  // total (which would overcount when other businesses share the order).
+  const scopedOrders = orders.map((order) => {
+    const ownItems = (order.items ?? []).filter((item: { businessId: unknown }) =>
+      businessIdSet.has(String(item.businessId)),
+    );
+
+    const ownSubtotal = ownItems.reduce(
+      (sum: number, item: { price?: number; quantity?: number }) =>
+        sum + Number(item.price ?? 0) * Number(item.quantity ?? 0),
+      0,
+    );
+
+    return {
+      ...order,
+      items: ownItems,
+      total: ownSubtotal,
+    };
+  });
+
+  return buildSellerDashboardSummary(scopedOrders as Parameters<typeof buildSellerDashboardSummary>[0]);
 }
 
 // convenience wrapper over delivery service for controllers
@@ -831,10 +870,7 @@ export async function getSellerOrdersForBusinessIds(actor: CommerceActor, busine
   }
 
   const orders = await Order.find({
-    $and: [
-      { items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } } },
-      { items: { $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } } } },
-    ],
+    items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } },
   })
     .sort({ createdAt: -1 })
     .lean();
@@ -1188,7 +1224,6 @@ export async function createOrderForUser(
     // an otherwise-successful order (spec: order success and
     // notification delivery are independent outcomes).
     try {
-      // await notifyNewOrderForBusiness(result!);
       await notifyNewOrderForBusiness(result! as OrderNotification);
     } catch (notificationError) {
       console.error(
