@@ -18,6 +18,7 @@ import {
   cancelOrderController
 } from "../controllers/commerceController.js";
 import { authenticate, optionalAuthenticate } from "../middleware/authMiddleware.js";
+import { createRateLimiter } from "../middleware/securityMiddleware.js";
 
 const router = Router();
 
@@ -39,7 +40,12 @@ router.get("/orders/seller", authenticate, getSellerOrdersController);
 router.get("/orders/seller/summary", authenticate, getSellerDashboardSummaryController);
 router.get("/orders/track", trackGuestOrderController);
 router.get("/orders/:orderId", authenticate, getOrderByIdController);
-router.post("/orders", optionalAuthenticate, createOrderController);
+const orderCreationRateLimiter = createRateLimiter({
+  windowMs: 10 * 60_000,
+  maxRequests: 10,
+});
+
+router.post("/orders", optionalAuthenticate, orderCreationRateLimiter, createOrderController);
 router.post("/orders/:orderId/cancel", authenticate, cancelOrderController);
 router.patch("/orders/:orderId/status", authenticate, updateOrderStatusController);
 router.post("/orders/:orderId/assign-delivery", authenticate, assignDeliveryController);

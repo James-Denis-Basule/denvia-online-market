@@ -6,30 +6,17 @@ import Order, { type OrderStatus } from "../models/Order.js";
 import Payment from "../models/Payment.js";
 import Delivery from "../models/Delivery.js";
 import Product from "../models/Product.js";
-import {
-  PAYMENT_PROVIDERS,
-  createPaymentIntent,
-  validatePaymentStatus,
-} from "./paymentService.js";
-import {
-  calculateDeliveryFee,
-  createTrackingCode,
-  normalizeDeliveryMethod,
-} from "./deliveryService.js";
-import {
-  buildDeliveryProviderRequest,
-  buildPaymentProviderRequest,
-} from "./providerAdapterService.js";
+import { PAYMENT_PROVIDERS, createPaymentIntent, validatePaymentStatus } from "./paymentService.js";
+import { calculateDeliveryFee, createTrackingCode, normalizeDeliveryMethod } from "./deliveryService.js";
+import { buildDeliveryProviderRequest, buildPaymentProviderRequest } from "./providerAdapterService.js";
 import { AppError } from "../utils/AppError.js";
-import {
-  notifyOrderStatusChange,
-  notifyNewOrderForBusiness,
-} from "./notificationService.js";
+import { notifyOrderStatusChange, notifyNewOrderForBusiness } from "./notificationService.js";
 import {
   generateOrderReference,
   generateGuestTrackingToken,
 } from "../utils/orderReference.js";
 import { assertPhoneVerificationToken } from "./otpService.js";
+
 export interface CommerceActor {
   userId: string;
   role: string;
@@ -85,39 +72,22 @@ async function resolveAuthoritativeCartItems(items: CartItemInput[]) {
     throw new AppError("Cart is empty", 400);
   }
 
-  const requestedItems = new Map<
-    string,
-    { quantity: number; businessId?: string }
-  >();
+  const requestedItems = new Map<string, { quantity: number; businessId?: string }>();
 
   for (const item of items) {
-    if (
-      !item ||
-      typeof item.productId !== "string" ||
-      !mongoose.isValidObjectId(item.productId)
-    ) {
+    if (!item || typeof item.productId !== "string" || !mongoose.isValidObjectId(item.productId)) {
       throw new AppError("Valid productId is required", 400);
     }
 
-    if (
-      item.businessId !== undefined &&
-      (!item.businessId || !mongoose.isValidObjectId(item.businessId))
-    ) {
+    if (item.businessId !== undefined && (!item.businessId || !mongoose.isValidObjectId(item.businessId))) {
       throw new AppError("Valid businessId is required", 400);
     }
 
     const quantity = normalizeRequestedQuantity(item.quantity);
     const existing = requestedItems.get(item.productId);
 
-    if (
-      existing?.businessId &&
-      item.businessId &&
-      existing.businessId !== item.businessId
-    ) {
-      throw new AppError(
-        "A product cannot be requested for multiple businesses",
-        400,
-      );
+    if (existing?.businessId && item.businessId && existing.businessId !== item.businessId) {
+      throw new AppError("A product cannot be requested for multiple businesses", 400);
     }
 
     requestedItems.set(item.productId, {
@@ -137,16 +107,10 @@ async function resolveAuthoritativeCartItems(items: CartItemInput[]) {
 
     const businessId = String(product.businessId);
     if (requested.businessId && requested.businessId !== businessId) {
-      throw new AppError(
-        "Product does not belong to the requested business",
-        400,
-      );
+      throw new AppError("Product does not belong to the requested business", 400);
     }
 
-    const business = await Business.findOne({
-      _id: product.businessId,
-      status: "active",
-    })
+    const business = await Business.findOne({ _id: product.businessId, status: "active" })
       .select("_id")
       .lean();
     if (!business) {
@@ -167,8 +131,7 @@ async function resolveAuthoritativeCartItems(items: CartItemInput[]) {
     }
     orderCurrency = currency;
 
-    const primaryMedia =
-      product.media.find((media) => media.isPrimary) ?? product.media[0];
+    const primaryMedia = product.media.find((media) => media.isPrimary) ?? product.media[0];
     resolvedItems.push({
       productId: String(product._id),
       businessId,
@@ -206,13 +169,11 @@ export async function addToCart(userId: string, itemInput: CartItemInput) {
     (item) => String(item.productId) === itemInput.productId,
   );
   const requestedQuantity = normalizeRequestedQuantity(itemInput.quantity);
-  const [authoritativeItem] = await resolveAuthoritativeCartItems([
-    {
-      productId: itemInput.productId,
-      businessId: itemInput.businessId,
-      quantity: requestedQuantity + (existingItem?.quantity ?? 0),
-    },
-  ]);
+  const [authoritativeItem] = await resolveAuthoritativeCartItems([{
+    productId: itemInput.productId,
+    businessId: itemInput.businessId,
+    quantity: requestedQuantity + (existingItem?.quantity ?? 0),
+  }]);
 
   if (!cart) {
     const createdCart = await Cart.create({
@@ -227,9 +188,7 @@ export async function addToCart(userId: string, itemInput: CartItemInput) {
     existingItem.quantity = authoritativeItem.quantity;
     existingItem.price = authoritativeItem.price;
     existingItem.name = authoritativeItem.name;
-    existingItem.businessId = new mongoose.Types.ObjectId(
-      authoritativeItem.businessId,
-    );
+    existingItem.businessId = new mongoose.Types.ObjectId(authoritativeItem.businessId);
     existingItem.currency = authoritativeItem.currency;
     existingItem.image = authoritativeItem.image;
   } else {
@@ -307,10 +266,7 @@ export function normalizeShippingMethod(method?: string) {
   const normalized = (method ?? "standard").trim().toLowerCase();
 
   if (!(normalized in SUPPORTED_SHIPPING_METHODS)) {
-    throw new AppError(
-      `Unsupported shipping method: ${method ?? "standard"}`,
-      400,
-    );
+    throw new AppError(`Unsupported shipping method: ${method ?? "standard"}`, 400);
   }
 
   return normalized as keyof typeof SUPPORTED_SHIPPING_METHODS;
@@ -320,22 +276,14 @@ export function normalizePaymentMethod(method?: string) {
   const normalized = (method ?? "cash_on_delivery").trim().toLowerCase();
 
   if (!(normalized in SUPPORTED_PAYMENT_METHODS)) {
-    throw new AppError(
-      `Unsupported payment method: ${method ?? "cash_on_delivery"}`,
-      400,
-    );
+    throw new AppError(`Unsupported payment method: ${method ?? "cash_on_delivery"}`, 400);
   }
 
   return normalized as keyof typeof SUPPORTED_PAYMENT_METHODS;
 }
 
-export function calculateCartTotals(
-  items: Array<{ price: number; quantity: number }>,
-) {
-  const subtotal = items.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0,
-  );
+export function calculateCartTotals(items: Array<{ price: number; quantity: number }>) {
+  const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
 
   return {
     subtotal,
@@ -344,11 +292,7 @@ export function calculateCartTotals(
   };
 }
 
-export function calculateCheckoutTotals(
-  subtotal: number,
-  shippingMethod?: string,
-  paymentMethod?: string,
-) {
+export function calculateCheckoutTotals(subtotal: number, shippingMethod?: string, paymentMethod?: string) {
   const normalizedShipping = normalizeShippingMethod(shippingMethod);
   const normalizedPayment = normalizePaymentMethod(paymentMethod);
 
@@ -372,24 +316,13 @@ export async function getCheckoutQuote(
   deliveryAddress?: string,
 ) {
   const authoritativeItems = await resolveAuthoritativeCartItems(items);
-  const orderData = buildOrderFromAuthoritativeItems(
-    authoritativeItems,
-    paymentMethod,
-    shippingMethod,
-    deliveryAddress,
-  );
+  const orderData = buildOrderFromAuthoritativeItems(authoritativeItems, paymentMethod, shippingMethod, deliveryAddress);
 
   return {
     ...orderData,
     providerSummary: {
-      shippingProvider:
-        SUPPORTED_SHIPPING_METHODS[
-          normalizeShippingMethod(orderData.shippingMethod)
-        ].label,
-      paymentProvider:
-        SUPPORTED_PAYMENT_METHODS[
-          normalizePaymentMethod(orderData.paymentMethod)
-        ].label,
+      shippingProvider: SUPPORTED_SHIPPING_METHODS[normalizeShippingMethod(orderData.shippingMethod)].label,
+      paymentProvider: SUPPORTED_PAYMENT_METHODS[normalizePaymentMethod(orderData.paymentMethod)].label,
     },
   };
 }
@@ -442,10 +375,7 @@ function buildOrderFromAuthoritativeItems(
   };
 }
 
-export function validateOrderStatusTransition(
-  currentStatus: OrderStatus,
-  nextStatus: OrderStatus,
-) {
+export function validateOrderStatusTransition(currentStatus: OrderStatus, nextStatus: OrderStatus) {
   const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
     pending: ["paid", "cancelled"],
     paid: ["confirmed", "cancelled"],
@@ -466,10 +396,7 @@ export function validateOrderStatusTransition(
   return true;
 }
 
-export async function updateOrderStatus(
-  orderId: string,
-  nextStatus: OrderStatus,
-) {
+export async function updateOrderStatus(orderId: string, nextStatus: OrderStatus) {
   if (!mongoose.isValidObjectId(orderId)) {
     throw new AppError("Valid orderId is required", 400);
   }
@@ -489,17 +416,19 @@ export async function updateOrderStatus(
   await order.save();
 
   try {
-    await notifyOrderStatusChange(
-      String(order.userId),
-      String(order._id),
-      nextStatus,
-    );
+    // In-app notification only applies to authenticated customers.
+    // Guest order status updates require the SMS/WhatsApp provider
+    // (currently demo-mode) to reach the customer — not faked here.
+    if (order.userId) {
+      await notifyOrderStatusChange(String(order.userId), String(order._id), nextStatus);
+    }
   } catch {
     // notification failure should not block order status updates
   }
 
   return order.toObject();
 }
+
 
 export async function cancelOrderForUserOrAuthorizedSeller(
   actor: CommerceActor,
@@ -522,7 +451,11 @@ export async function cancelOrderForUserOrAuthorizedSeller(
     throw new AppError("Order not found", 404);
   }
 
-  const cancellableStatuses: OrderStatus[] = ["pending", "paid", "confirmed"];
+  const cancellableStatuses: OrderStatus[] = [
+    "pending",
+    "paid",
+    "confirmed",
+  ];
 
   if (!cancellableStatuses.includes(order.status as OrderStatus)) {
     throw new AppError(
@@ -562,9 +495,8 @@ export async function cancelOrderForUserOrAuthorizedSeller(
    *
    * Pending/failed payments are not incorrectly converted to refunded.
    */
-  const payment = await Payment.findOne({ orderId: order._id }).sort({
-    createdAt: -1,
-  });
+  const payment = await Payment.findOne({ orderId: order._id })
+    .sort({ createdAt: -1 });
 
   if (payment?.status === "paid") {
     payment.status = "refunded";
@@ -585,11 +517,13 @@ export async function cancelOrderForUserOrAuthorizedSeller(
    * the current schema, so pending/assigned deliveries are marked
    * failed rather than inventing a new schema state.
    */
-  const delivery = await Delivery.findOne({ orderId: order._id }).sort({
-    createdAt: -1,
-  });
+  const delivery = await Delivery.findOne({ orderId: order._id })
+    .sort({ createdAt: -1 });
 
-  if (delivery && ["pending", "assigned"].includes(String(delivery.status))) {
+  if (
+    delivery &&
+    ["pending", "assigned"].includes(String(delivery.status))
+  ) {
     delivery.status = "failed";
 
     (delivery as any).events = Array.isArray((delivery as any).events)
@@ -607,11 +541,13 @@ export async function cancelOrderForUserOrAuthorizedSeller(
   }
 
   try {
-    await notifyOrderStatusChange(
-      String(order.userId),
-      String(order._id),
-      "cancelled",
-    );
+    if (order.userId) {
+      await notifyOrderStatusChange(
+        String(order.userId),
+        String(order._id),
+        "cancelled",
+      );
+    }
   } catch {
     // Notification failure must not block cancellation.
   }
@@ -654,9 +590,7 @@ async function getOwnedBusinessIds(
     .map((businessId) => businessId.trim())
     .filter(Boolean);
 
-  if (
-    requestedIds.some((businessId) => !mongoose.isValidObjectId(businessId))
-  ) {
+  if (requestedIds.some((businessId) => !mongoose.isValidObjectId(businessId))) {
     throw new AppError("Valid businessId is required", 400);
   }
 
@@ -668,10 +602,7 @@ async function getOwnedBusinessIds(
   if (requestedIds.length > 0) {
     const ownedIdSet = new Set(ownedIds);
     if (requestedIds.some((businessId) => !ownedIdSet.has(businessId))) {
-      throw new AppError(
-        "You are not authorized to operate one or more businesses",
-        403,
-      );
+      throw new AppError("You are not authorized to operate one or more businesses", 403);
     }
 
     return requestedIds;
@@ -738,14 +669,12 @@ export async function requireAuthorizedSellerForOrder(
     throw new AppError("Valid orderId is required", 400);
   }
 
-  const order = knownOrder ?? (await Order.findById(orderId).lean());
+  const order = knownOrder ?? await Order.findById(orderId).lean();
   if (!order) {
     throw new AppError("Order not found", 404);
   }
 
-  const businessIds = (order.items ?? []).map((item: { businessId: unknown }) =>
-    String(item.businessId),
-  );
+  const businessIds = (order.items ?? []).map((item: { businessId: unknown }) => String(item.businessId));
   if (!businessIds.length) {
     throw new AppError("Order has no business items", 400);
   }
@@ -788,7 +717,7 @@ export function buildSellerDashboardSummary(
     total?: number;
     currency?: string;
     createdAt?: Date | string;
-    items?: Array<{ quantity?: number }>;
+    items?: Array<{ quantity?: number }>; 
   }>,
 ): SellerDashboardSummary {
   const statusList: OrderStatus[] = [
@@ -801,13 +730,10 @@ export function buildSellerDashboardSummary(
     "cancelled",
   ];
 
-  const countsByStatus = statusList.reduce(
-    (accumulator, status) => {
-      accumulator[status] = 0;
-      return accumulator;
-    },
-    {} as Record<OrderStatus, number>,
-  );
+  const countsByStatus = statusList.reduce((accumulator, status) => {
+    accumulator[status] = 0;
+    return accumulator;
+  }, {} as Record<OrderStatus, number>);
 
   let totalRevenue = 0;
   let paidRevenue = 0;
@@ -820,9 +746,7 @@ export function buildSellerDashboardSummary(
     const total = Number(order.total ?? 0);
     totalRevenue += total;
 
-    if (
-      ["paid", "confirmed", "packed", "shipped", "completed"].includes(status)
-    ) {
+    if (["paid", "confirmed", "packed", "shipped", "completed"].includes(status)) {
       paidRevenue += total;
     }
 
@@ -834,9 +758,7 @@ export function buildSellerDashboardSummary(
   const recentOrders = [...orders]
     .sort((left, right) => {
       const leftDate = left.createdAt ? new Date(left.createdAt).getTime() : 0;
-      const rightDate = right.createdAt
-        ? new Date(right.createdAt).getTime()
-        : 0;
+      const rightDate = right.createdAt ? new Date(right.createdAt).getTime() : 0;
       return rightDate - leftDate;
     })
     .slice(0, 5)
@@ -845,14 +767,8 @@ export function buildSellerDashboardSummary(
       status: (order.status as OrderStatus) ?? "pending",
       total: Number(order.total ?? 0),
       currency: order.currency ?? "UGX",
-      itemCount:
-        order.items?.reduce(
-          (count, item) => count + Number(item.quantity ?? 0),
-          0,
-        ) ?? 0,
-      createdAt: order.createdAt
-        ? new Date(order.createdAt).toISOString()
-        : undefined,
+      itemCount: order.items?.reduce((count, item) => count + Number(item.quantity ?? 0), 0) ?? 0,
+      createdAt: order.createdAt ? new Date(order.createdAt).toISOString() : undefined,
     }));
 
   const totalOrders = orders.length;
@@ -874,10 +790,7 @@ export function buildSellerDashboardSummary(
   };
 }
 
-export async function getSellerDashboardSummary(
-  actor: CommerceActor,
-  businessIds?: string[],
-) {
+export async function getSellerDashboardSummary(actor: CommerceActor, businessIds?: string[]) {
   const ownerBusinessIds = await getOwnedBusinessIds(actor, businessIds);
 
   if (!ownerBusinessIds.length) {
@@ -891,41 +804,27 @@ export async function getSellerDashboardSummary(
   const orders = await Order.find({
     $and: [
       { items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } } },
-      {
-        items: {
-          $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } },
-        },
-      },
+      { items: { $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } } } },
     ],
   })
     .sort({ createdAt: -1 })
     .limit(25)
     .lean();
 
-  return buildSellerDashboardSummary(
-    orders as Parameters<typeof buildSellerDashboardSummary>[0],
-  );
+  return buildSellerDashboardSummary(orders as Parameters<typeof buildSellerDashboardSummary>[0]);
 }
 
 // convenience wrapper over delivery service for controllers
-import { assignDeliveryToOrder as deliveryAssign } from "./deliveryService.js";
+import { assignDeliveryToOrder as deliveryAssign } from './deliveryService.js';
 
-export async function assignDeliveryToOrder(
-  orderId: string,
-  courier?: string,
-  trackingCode?: string,
-) {
+export async function assignDeliveryToOrder(orderId: string, courier?: string, trackingCode?: string) {
   return deliveryAssign(orderId, courier, trackingCode);
 }
 
-export async function getSellerOrdersForBusinessIds(
-  actor: CommerceActor,
-  businessIds?: string[],
-) {
+export async function getSellerOrdersForBusinessIds(actor: CommerceActor, businessIds?: string[]) {
   const ownedBusinessIds = await getOwnedBusinessIds(actor, businessIds);
-  const normalizedBusinessIds = ownedBusinessIds.map(
-    (businessId) => new mongoose.Types.ObjectId(businessId),
-  );
+  const normalizedBusinessIds = ownedBusinessIds
+    .map((businessId) => new mongoose.Types.ObjectId(businessId));
 
   if (!normalizedBusinessIds.length) {
     return [];
@@ -934,11 +833,7 @@ export async function getSellerOrdersForBusinessIds(
   const orders = await Order.find({
     $and: [
       { items: { $elemMatch: { businessId: { $in: normalizedBusinessIds } } } },
-      {
-        items: {
-          $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } },
-        },
-      },
+      { items: { $not: { $elemMatch: { businessId: { $nin: normalizedBusinessIds } } } } },
     ],
   })
     .sort({ createdAt: -1 })
@@ -1010,8 +905,7 @@ export async function createOrderForUser(
   const session = await mongoose.startSession();
 
   try {
-    // let result: Record<string, unknown>;
-    let result: OrderNotification | undefined;
+    let result: Record<string, unknown>;
 
     await session.withTransaction(async () => {
       let customer: {
@@ -1235,8 +1129,7 @@ export async function createOrderForUser(
 
       const paymentIntent = createPaymentIntent({
         orderId: String(createdOrder._id),
-        // userId,
-        userId: userId ?? "",
+        userId,
         amount: createdOrder.total,
         currency: createdOrder.currency,
         provider: normalizedPaymentMethod,
@@ -1296,9 +1189,7 @@ export async function createOrderForUser(
     // notification delivery are independent outcomes).
     try {
       // await notifyNewOrderForBusiness(result!);
-      if (result) {
-        await notifyNewOrderForBusiness(result);
-      }
+      await notifyNewOrderForBusiness(result! as OrderNotification);
     } catch (notificationError) {
       console.error(
         "Failed to notify business of new order:",

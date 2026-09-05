@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { z } from "zod";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import {
   addToCart,
@@ -229,6 +230,17 @@ export async function trackGuestOrderController(
   }
 }
 
+const guestInfoSchema = z
+  .object({
+    firstName: z.string().trim().min(1),
+    lastName: z.string().trim().min(1),
+    phone: z.string().trim().min(6),
+    email: z.string().trim().email().optional(),
+    verificationToken: z.string().trim().min(1),
+    preferredChannel: z.enum(["sms", "whatsapp", "email"]).optional(),
+  })
+  .optional();
+
 export async function createOrderController(
   req: AuthenticatedRequest,
   res: Response,
@@ -237,6 +249,19 @@ export async function createOrderController(
   try {
     const { items, paymentMethod, shippingMethod, deliveryAddress, guestInfo } =
       req.body ?? {};
+
+    if (!req.user?.userId) {
+      const validation = guestInfoSchema.safeParse(guestInfo);
+
+      if (!validation.success) {
+        res.status(400).json({
+          success: false,
+          message: "Valid guest contact information is required",
+          errors: validation.error.flatten().fieldErrors,
+        });
+        return;
+      }
+    }
 
     const order = await createOrderForUser(req.user?.userId, {
       items,

@@ -22,7 +22,7 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export interface CreatePaymentIntentInput {
   orderId: string;
-  userId: string;
+  userId?: string;
   amount: number;
   currency?: string;
   provider: PaymentProvider;
@@ -70,8 +70,8 @@ export function createPaymentIntent({
   provider,
   method,
 }: CreatePaymentIntentInput) {
-  if (!orderId || !userId) {
-    throw new AppError("orderId and userId are required", 400);
+  if (!orderId) {
+    throw new AppError("orderId is required", 400);
   }
 
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -198,7 +198,7 @@ async function synchronizeOrderPaymentState(
    */
   await order.save({ session });
 
-  if (paymentStatus === "paid") {
+  if (paymentStatus === "paid" && order.userId) {
     try {
       await notifyOrderStatusChange(
         String(order.userId),

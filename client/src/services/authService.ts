@@ -19,6 +19,12 @@ export interface AuthUser {
   isEmailVerified: boolean;
   isActive?: boolean;
   activeBusiness?: ActiveBusiness | null;
+  notificationPreferences?: {
+    sms: boolean;
+    whatsapp: boolean;
+    email: boolean;
+    inApp: boolean;
+  };
   createdAt?: string;
   updatedAt?: string;
 }
@@ -112,3 +118,16 @@ export async function logoutUser() {
     localStorage.removeItem("authUser");
   }
 }
+
+export async function updateNotificationPreferences(preferences: {
+  sms?: boolean;
+  whatsapp?: boolean;
+  email?: boolean;
+}) {
+  const response = await api.patch(
+    "/auth/me/notification-preferences",
+    preferences,
+  );
+  return response.data.data.notificationPreferences;
+}
+

@@ -5,6 +5,9 @@ import MainLayout from "../layouts/MainLayout";
 import HomePage from "../pages/HomePage";
 import BusinessesPage from "../pages/BusinessesPage";
 import BusinessDetailPage from "../pages/BusinessDetailPage";
+import OrderConfirmationPage from "../pages/OrderConfirmationPage";
+import AccountPage from "../pages/AccountPage";
+import StaffManagementPage from "../pages/StaffManagementPage";
 import BusinessManagementPage from "../pages/BusinessManagementPage";
 import BusinessCreatePage from "../pages/BusinessCreatePage";
 import BusinessEditPage from "../pages/BusinessEditPage";
@@ -112,9 +115,18 @@ function AppRoutes() {
           {/* Guest cart and checkout */}
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route
+            path="/orders/confirmation/:reference"
+            element={<OrderConfirmationPage />}
+          />
 
           {/* Authenticated pages */}
           <Route element={<ProtectedRoute />}>
+            <Route path="/account" element={<AccountPage />} />
+            <Route
+              path="/businesses/:businessId/staff"
+              element={<StaffManagementPage />}
+            />
             {/* Customer pages */}
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:orderId" element={<OrderDetailPage />} />

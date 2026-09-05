@@ -207,29 +207,55 @@ The platform aims to become a trusted digital ecosystem where businesses can:
 
 ### 2. User roles
 
+#### 2.0 Account model (read this first)
+
+DOM uses **one user identity** with two independent dimensions, so this
+is worth understanding before reading the role sections below:
+
+| Dimension | Values | What it governs |
+|---|---|---|
+| **Account capability** (`accountTypes`) | `customer`, `business` | What a user *can use* on the platform. A user can hold both at once — becoming a seller never removes customer capability, and there is no second account. |
+| **Authorization role** (`role`) | `user`, `business_owner`, `business_staff`, `admin` | What a user *is allowed to do*, enforced by backend middleware on every request. |
+
+A customer becomes a seller via **"Start selling on DOM"** (or by
+creating their first business), which adds the `business` capability
+and elevates their role to `business_owner` — same login, same
+account, no re-registration.
+
+Guest shoppers are the exception: **an account is never required to
+browse or buy.** See FR-005 and FR-015 below.
+
 #### 2.1 Customer
 
-A customer can:
+Shopping does **not** require an account. A guest can do everything
+below except items marked *(account only)*:
 
 - browse businesses and products
 - search and filter listings
-- add products to cart
-- place orders
-- track delivery and order status
+- add products to cart (persists across guest sessions)
+- verify a phone number by OTP and place an order
+- track an order via a secure reference + tracking link
 - read product reviews and leave feedback
-- receive notifications
+- receive order notifications via SMS/WhatsApp/email
+- *(account only)* view order history in one place, save delivery
+  details, receive in-app notifications
 
 #### 2.2 Business owner / seller
 
 A business owner can:
 
-- manage a business profile and storefront
+- manage a business profile and storefront (branding, contact,
+  business hours, social links)
+- invite staff and control which staff receive order/feedback
+  notifications
 - add products and services
 - update prices, stock, and media
 - monitor order flow and fulfillment
 - assign delivery providers and track shipments
 - review analytics and revenue reports
 - run AI-driven marketing actions
+- receive an in-app notification for every new order and new
+  customer feedback
 
 #### 2.3 Platform admin
 
@@ -259,13 +285,17 @@ The system shall allow a business owner to create, edit, publish, and archive pr
 
 The system shall support public discovery of products and businesses through keyword search, category filters, sorting, and basic analytics-friendly listing responses.
 
-#### FR-005: Cart and checkout
+#### FR-005: Cart and checkout ✅
 
-The system shall allow a customer to add items to a cart, validate totals, and move to checkout with required shipping and payment details.
+The system shall allow both guests and authenticated customers to add
+items to a cart, validate totals, and complete checkout. A guest cart
+persists locally and merges into the account cart on login/register
+without data loss. Login or registration is never required to
+complete a purchase.
 
-#### FR-006: Order lifecycle management
+#### FR-006: Order lifecycle management ✅
 
-The system shall track each order through a structured lifecycle including pending, paid, confirmed, packed, shipped, delivered, or cancelled states.
+The system shall track each order through a structured lifecycle including pending, paid, confirmed, packed, shipped, delivered, or cancelled states. Every order receives a unique, human-readable reference (`DOM-XXXXXXXX`). An order may exist without a registered `userId` (guest order) while retaining the contact snapshot needed to fulfill and communicate about it.
 
 #### FR-007: Payment abstraction
 
@@ -275,9 +305,9 @@ The system shall support a provider abstraction that accommodates demo and live 
 
 The system shall support delivery assignment, tracking code capture, and lifecycle progression for in-transit and delivered states.
 
-#### FR-009: Notifications
+#### FR-009: Notifications ✅
 
-The system shall create, store, and present status-driven notifications for key changes such as order updates, delivery progress, and platform messages.
+The system shall create, store, and present status-driven notifications for order updates, delivery progress, new orders, and new customer feedback. Recipients are resolved by business ownership and staff membership: a business owner and their opted-in staff are notified of events on their own business only, never another business's events. Notification delivery failure must never fail the underlying order or feedback action. Customers may opt SMS/WhatsApp/email channels in or out; in-app notifications for account holders cannot be disabled since they carry required order information.
 
 #### FR-010: AI marketing and credits
 
@@ -299,11 +329,19 @@ The system shall expose which payment and delivery providers are ready, configur
 
 The system shall provide admin visibility into key system state, moderation tools, and operational health indicators.
 
+#### FR-015: Guest identity and phone verification ✅
+
+The system shall verify a guest's phone number via a server-generated, hashed, time-limited OTP before allowing order placement. The client never asserts its own verification state — the server issues a signed, short-lived verification token only after successful OTP verification, and order creation validates that token rather than trusting a client-supplied flag. A verified guest may look up their own order using the order reference together with a secure tracking token; the reference alone is never sufficient to reveal order details.
+
+#### FR-016: Business staff and notification permissions ✅
+
+The system shall allow a business owner to invite existing platform users as staff (`manager` or `staff`) scoped to a single business, without creating a second account for that user. Staff gain business-context access only after accepting their invite. An owner may revoke an individual staff member's ability to receive order/feedback notifications independently of their business access.
+
 ### 4. Non-functional requirements
 
 #### NFR-01: Security
 
-The system shall use secure session/token handling, strict input validation, rate limiting, and environment-driven configuration to reduce exposure to unsafe traffic and misconfiguration.
+The system shall use secure session/token handling, strict input validation, rate limiting, and environment-driven configuration to reduce exposure to unsafe traffic and misconfiguration. Guest-accessible endpoints (checkout quote, order creation, OTP request/verify) are rate-limited independently of the global limiter. No client-supplied claim (price, stock, verification status, ownership, or role) is ever trusted without a matching server-side check.
 
 #### NFR-02: Reliability
 
@@ -340,14 +378,15 @@ The system organizes data around the following domains:
 
 #### MVP / current phase
 
-- business profiles and catalog management
+- guest and account-based shopping, unified under one user identity
+- business profiles, catalog management, and staff/permissions
 - search and discovery
-- marketplace cart and orders
+- marketplace cart and orders, including guest checkout with OTP verification
 - delivery lifecycle basics
-- notifications and analytics
+- notifications (in-app, business/staff-aware) and analytics
 - AI usage overview
-- provider mode readiness notes
-- review system for trust-building
+- provider mode readiness notes (payment, delivery, SMS — all demo-safe by default)
+- review system for trust-building, with business notification on new feedback
 
 #### Growth phase
 
@@ -371,14 +410,15 @@ The system organizes data around the following domains:
 To keep the system competitive and production-ready, the next best improvements are:
 
 1. live payment gateway integration with Stripe or Flutterwave
-2. real courier API integration and fulfillment orchestration
-3. richer messaging and customer support workflow
-4. review moderation and spam protections
-5. referral and rewards engine
-6. subscription and billing upgrades for sellers
-7. deeper AI campaign automation for content and ads
-8. exportable analytics reports and business insights
+2. real SMS/WhatsApp provider integration (currently demo-mode by design) to complete OTP delivery and multi-channel order notifications
+3. real courier API integration and fulfillment orchestration
+4. richer messaging and customer support workflow
+5. review moderation and spam protections
+6. referral and rewards engine
+7. subscription and billing upgrades for sellers
+8. deeper AI campaign automation for content and ads
+9. exportable analytics reports and business insights
 
 ## Validation status
 
-The current project already demonstrates a stable marketplace MVP with seller dashboards, order management, fulfillment orchestration, AI marketing visibility, and provider readiness signals. The codebase remains intentionally demo-safe for external integrations while preserving the architecture needed to move into real provider connectivity and higher-scale operations.
+The current project already demonstrates a stable marketplace MVP with seller dashboards, order management, fulfillment orchestration, AI marketing visibility, and provider readiness signals. Guest checkout, phone OTP verification, and business/staff-aware notifications are implemented end-to-end (server + client) and covered by the account-model rules in §2.0. The codebase remains intentionally demo-safe for external integrations (payment, delivery, SMS) while preserving the architecture needed to move into real provider connectivity and higher-scale operations.

@@ -263,6 +263,7 @@ export async function getCurrentUser(
           role: user.role,
           isActive: user.isActive,
           isEmailVerified: user.isEmailVerified,
+          notificationPreferences: user.notificationPreferences,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         },

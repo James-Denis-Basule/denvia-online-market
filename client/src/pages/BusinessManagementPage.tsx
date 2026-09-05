@@ -237,6 +237,13 @@ function BusinessManagementPage() {
                           Open dashboard
                         </Link>
 
+                        <Link
+                          to={`/businesses/${business._id}/staff`}
+                          className="mt-3 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                        >
+                          Manage staff
+                        </Link>
+
                         <button
                           type="button"
                           disabled={isWorking}
