@@ -26,6 +26,9 @@ const envSchema = z.object({
 
   DELIVERY_PROVIDER_MODE: z.enum(["demo", "live"]).default("demo"),
 
+  SMS_PROVIDER_MODE: z.enum(["demo", "live"]).default("demo"),
+  SMS_PROVIDER_API_KEY: z.string().optional(),
+
   STRIPE_SECRET_KEY: z
     .string()
     .optional()
@@ -91,6 +94,9 @@ const env = {
   paymentProviderMode: parsedEnv.data.PAYMENT_PROVIDER_MODE,
 
   deliveryProviderMode: parsedEnv.data.DELIVERY_PROVIDER_MODE,
+
+  smsProviderMode: parsedEnv.data.SMS_PROVIDER_MODE,
+  smsProviderApiKey: parsedEnv.data.SMS_PROVIDER_API_KEY,
 
   stripeSecretKey: parsedEnv.data.STRIPE_SECRET_KEY,
 

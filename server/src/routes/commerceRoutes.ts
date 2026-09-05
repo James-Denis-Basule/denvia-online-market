@@ -5,6 +5,7 @@ import {
   updateCartItemController,
   removeCartItemController,
   createOrderController,
+  trackGuestOrderController,
   getCheckoutQuoteController,
   getOrderByIdController,
   getOrdersController,
@@ -16,7 +17,7 @@ import {
   updateDeliveryStatusController,
   cancelOrderController
 } from "../controllers/commerceController.js";
-import { authenticate } from "../middleware/authMiddleware.js";
+import { authenticate, optionalAuthenticate } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
@@ -32,12 +33,13 @@ router.delete(
   authenticate,
   removeCartItemController,
 );
-router.post("/checkout/quote", authenticate, getCheckoutQuoteController);
+router.post("/checkout/quote", getCheckoutQuoteController);
 router.get("/orders", authenticate, getOrdersController);
 router.get("/orders/seller", authenticate, getSellerOrdersController);
 router.get("/orders/seller/summary", authenticate, getSellerDashboardSummaryController);
+router.get("/orders/track", trackGuestOrderController);
 router.get("/orders/:orderId", authenticate, getOrderByIdController);
-router.post("/orders", authenticate, createOrderController);
+router.post("/orders", optionalAuthenticate, createOrderController);
 router.post("/orders/:orderId/cancel", authenticate, cancelOrderController);
 router.patch("/orders/:orderId/status", authenticate, updateOrderStatusController);
 router.post("/orders/:orderId/assign-delivery", authenticate, assignDeliveryController);

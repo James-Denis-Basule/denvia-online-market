@@ -98,6 +98,33 @@ export async function listBusinessStaff(businessId: string) {
     .sort({ createdAt: -1 });
 }
 
+export async function updateStaffNotificationPermission(
+  businessId: string,
+  membershipId: string,
+  canReceiveOrderNotifications: boolean,
+) {
+  if (
+    !mongoose.isValidObjectId(businessId) ||
+    !mongoose.isValidObjectId(membershipId)
+  ) {
+    throw new AppError("Invalid ID", 400);
+  }
+
+  const membership = await BusinessStaff.findOne({
+    _id: membershipId,
+    businessId,
+  });
+
+  if (!membership) {
+    throw new AppError("Staff membership not found", 404);
+  }
+
+  membership.canReceiveOrderNotifications = canReceiveOrderNotifications;
+  await membership.save();
+
+  return membership;
+}
+
 export async function removeStaffMember(
   businessId: string,
   membershipId: string,

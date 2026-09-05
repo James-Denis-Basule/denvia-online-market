@@ -20,6 +20,7 @@ export interface IBusinessStaff extends Document {
   userId: Types.ObjectId;
   role: BusinessStaffRole;
   status: BusinessStaffStatus;
+  canReceiveOrderNotifications: boolean;
   invitedBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -51,6 +52,11 @@ const businessStaffSchema = new Schema<IBusinessStaff>(
       type: String,
       enum: ["active", "invited", "removed"],
       default: "invited",
+    },
+
+    canReceiveOrderNotifications: {
+      type: Boolean,
+      default: true,
     },
 
     invitedBy: {

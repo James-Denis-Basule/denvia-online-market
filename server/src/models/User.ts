@@ -20,6 +20,14 @@ export interface IUser extends Document {
   isEmailVerified: boolean;
   emailVerificationTokenHash?: string;
   emailVerificationExpiresAt?: Date;
+  passwordResetTokenHash?: string;
+  passwordResetExpiresAt?: Date;
+  notificationPreferences: {
+    sms: boolean;
+    whatsapp: boolean;
+    email: boolean;
+    inApp: boolean;
+  };
   refreshToken?: string;
   refreshTokenExpiresAt?: Date;
   activeOrganizationId?: Types.ObjectId;
@@ -99,6 +107,23 @@ const userSchema = new Schema<IUser>(
     emailVerificationExpiresAt: {
       type: Date,
       select: false,
+    },
+
+    passwordResetTokenHash: {
+      type: String,
+      select: false,
+    },
+
+    passwordResetExpiresAt: {
+      type: Date,
+      select: false,
+    },
+
+    notificationPreferences: {
+      sms: { type: Boolean, default: true },
+      whatsapp: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      inApp: { type: Boolean, default: true },
     },
 
     refreshToken: {

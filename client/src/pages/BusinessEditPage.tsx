@@ -42,6 +42,34 @@ const categories = [
   "Other",
 ];
 
+const DAYS: {
+  key:
+    | "monday"
+    | "tuesday"
+    | "wednesday"
+    | "thursday"
+    | "friday"
+    | "saturday"
+    | "sunday";
+  label: string;
+}[] = [
+  { key: "monday", label: "Monday" },
+  { key: "tuesday", label: "Tuesday" },
+  { key: "wednesday", label: "Wednesday" },
+  { key: "thursday", label: "Thursday" },
+  { key: "friday", label: "Friday" },
+  { key: "saturday", label: "Saturday" },
+  { key: "sunday", label: "Sunday" },
+];
+
+type DayHours = { isOpen: boolean; open: string; close: string };
+
+const DEFAULT_DAY_HOURS: DayHours = {
+  isOpen: true,
+  open: "08:00",
+  close: "17:00",
+};
+
 function BusinessEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -64,6 +92,8 @@ function BusinessEditPage() {
     category: "",
     phone: "",
     email: "",
+    whatsappNumber: "",
+    website: "",
     address: "",
     city: "",
     district: "",
@@ -71,6 +101,22 @@ function BusinessEditPage() {
     logo: "",
     coverImage: "",
   });
+
+  const [socialLinks, setSocialLinks] = useState({
+    facebook: "",
+    instagram: "",
+    linkedin: "",
+    tiktok: "",
+    x: "",
+  });
+
+  const [operatingHours, setOperatingHours] = useState<
+    Record<string, DayHours>
+  >(() =>
+    Object.fromEntries(
+      DAYS.map((day) => [day.key, { ...DEFAULT_DAY_HOURS }]),
+    ),
+  );
 
   useEffect(() => {
     if (!business) return;
@@ -97,6 +143,10 @@ function BusinessEditPage() {
       category: business.category ?? "",
       phone: phone.replace(/^\+\d+\s*/, "").replace(/^0/, ""),
       email: business.email ?? "",
+      whatsappNumber: String(business.whatsappNumber ?? "")
+        .replace(/^\+\d+\s*/, "")
+        .replace(/^0/, ""),
+      website: business.website ?? "",
       address: business.address ?? "",
       city: business.city ?? "",
       district: String(business.district ?? ""),
@@ -105,9 +155,68 @@ function BusinessEditPage() {
       coverImage: business.coverImage ?? "",
     });
 
+    setSocialLinks({
+      facebook: business.socialLinks?.facebook ?? "",
+      instagram: business.socialLinks?.instagram ?? "",
+      linkedin: business.socialLinks?.linkedin ?? "",
+      tiktok: business.socialLinks?.tiktok ?? "",
+      x: business.socialLinks?.x ?? "",
+    });
+
+    setOperatingHours(
+      Object.fromEntries(
+        DAYS.map((day) => {
+          const existing = business.operatingHours?.[day.key];
+
+          return [
+            day.key,
+            {
+              isOpen: existing?.isOpen ?? DEFAULT_DAY_HOURS.isOpen,
+              open: existing?.open ?? DEFAULT_DAY_HOURS.open,
+              close: existing?.close ?? DEFAULT_DAY_HOURS.close,
+            },
+          ];
+        }),
+      ),
+    );
+
     setLogoPreview(business.logo ?? "");
     setCoverPreview(business.coverImage ?? "");
   }, [business]);
+
+  function handleSocialLinkChange(
+    platform: keyof typeof socialLinks,
+    value: string,
+  ) {
+    setSocialLinks((current) => ({
+      ...current,
+      [platform]: value,
+    }));
+  }
+
+  function handleDayToggle(dayKey: string) {
+    setOperatingHours((current) => ({
+      ...current,
+      [dayKey]: {
+        ...current[dayKey],
+        isOpen: !current[dayKey].isOpen,
+      },
+    }));
+  }
+
+  function handleDayTimeChange(
+    dayKey: string,
+    field: "open" | "close",
+    value: string,
+  ) {
+    setOperatingHours((current) => ({
+      ...current,
+      [dayKey]: {
+        ...current[dayKey],
+        [field]: value,
+      },
+    }));
+  }
 
   function handleChange(
     event: React.ChangeEvent<
@@ -116,16 +225,16 @@ function BusinessEditPage() {
   ) {
     const { name, value } = event.target;
 
-    if (name === "phone") {
-      let phone = value.replace(/[^\d]/g, "");
+    if (name === "phone" || name === "whatsappNumber") {
+      let digits = value.replace(/[^\d]/g, "");
 
-      if (phone.startsWith("0")) {
-        phone = phone.slice(1);
+      if (digits.startsWith("0")) {
+        digits = digits.slice(1);
       }
 
       setForm((current) => ({
         ...current,
-        phone,
+        [name]: digits,
       }));
 
       return;
@@ -222,10 +331,23 @@ function BusinessEditPage() {
           ? `+${getCountryCallingCode(country)} ${form.phone}`
           : undefined,
         email: form.email.trim() || undefined,
+        whatsappNumber: form.whatsappNumber
+          ? `+${getCountryCallingCode(country)} ${form.whatsappNumber}`
+          : undefined,
+        website: form.website.trim() || undefined,
         location: {
           country: form.country,
           city: form.city.trim() || undefined,
+          district: form.district.trim() || undefined,
           address: form.address.trim() || undefined,
+        },
+        operatingHours,
+        socialLinks: {
+          facebook: socialLinks.facebook.trim() || undefined,
+          instagram: socialLinks.instagram.trim() || undefined,
+          linkedin: socialLinks.linkedin.trim() || undefined,
+          tiktok: socialLinks.tiktok.trim() || undefined,
+          x: socialLinks.x.trim() || undefined,
         },
         logo:
           !logoFile && form.logo.startsWith("http")
@@ -324,7 +446,7 @@ function BusinessEditPage() {
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
             Update your business information, contact details, location,
-            logo, and cover image.
+            business hours, social links, logo, and cover image.
           </p>
         </section>
 
@@ -469,6 +591,39 @@ function BusinessEditPage() {
                     placeholder="business@example.com"
                   />
                 </label>
+
+                <label>
+                  <span className="text-sm font-semibold text-gray-700">
+                    WhatsApp number
+                  </span>
+                  <div className="mt-2 flex">
+                    <span className="flex items-center rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 px-4 text-sm font-semibold text-gray-700">
+                      +{getCountryCallingCode(country)}
+                    </span>
+                    <input
+                      name="whatsappNumber"
+                      value={form.whatsappNumber}
+                      onChange={handleChange}
+                      inputMode="numeric"
+                      placeholder="Leave blank to use phone number"
+                      className="w-full rounded-r-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                    />
+                  </div>
+                </label>
+
+                <label>
+                  <span className="text-sm font-semibold text-gray-700">
+                    Website
+                  </span>
+                  <input
+                    name="website"
+                    type="url"
+                    value={form.website}
+                    onChange={handleChange}
+                    className={input}
+                    placeholder="https://yourbusiness.com"
+                  />
+                </label>
               </div>
             </section>
 
@@ -540,6 +695,122 @@ function BusinessEditPage() {
                     placeholder="Street, building, landmark"
                   />
                 </label>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+              <h2 className="text-xl font-bold text-gray-900">
+                Business hours
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Let customers know when you're open. This shows on your
+                public storefront.
+              </p>
+
+              <div className="mt-6 space-y-3">
+                {DAYS.map((day) => {
+                  const hours = operatingHours[day.key];
+
+                  return (
+                    <div
+                      key={day.key}
+                      className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <label className="flex items-center gap-3 sm:w-40">
+                        <input
+                          type="checkbox"
+                          checked={hours.isOpen}
+                          onChange={() => handleDayToggle(day.key)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-semibold text-gray-800">
+                          {day.label}
+                        </span>
+                      </label>
+
+                      {hours.isOpen ? (
+                        <div className="flex flex-1 items-center gap-3">
+                          <input
+                            type="time"
+                            value={hours.open}
+                            onChange={(event) =>
+                              handleDayTimeChange(
+                                day.key,
+                                "open",
+                                event.target.value,
+                              )
+                            }
+                            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50 sm:w-36"
+                          />
+                          <span className="text-sm text-gray-400">to</span>
+                          <input
+                            type="time"
+                            value={hours.close}
+                            onChange={(event) =>
+                              handleDayTimeChange(
+                                day.key,
+                                "close",
+                                event.target.value,
+                              )
+                            }
+                            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50 sm:w-36"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-400 sm:flex-1">
+                          Closed
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+              <h2 className="text-xl font-bold text-gray-900">
+                Social links
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Add full links (including https://) so customers can find
+                you on social media.
+              </p>
+
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                {(
+                  [
+                    ["facebook", "Facebook", "https://facebook.com/yourpage"],
+                    [
+                      "instagram",
+                      "Instagram",
+                      "https://instagram.com/yourhandle",
+                    ],
+                    [
+                      "linkedin",
+                      "LinkedIn",
+                      "https://linkedin.com/company/yourbusiness",
+                    ],
+                    ["tiktok", "TikTok", "https://tiktok.com/@yourhandle"],
+                    ["x", "X (Twitter)", "https://x.com/yourhandle"],
+                  ] as const
+                ).map(([platform, label, placeholder]) => (
+                  <label key={platform}>
+                    <span className="text-sm font-semibold text-gray-700">
+                      {label}
+                    </span>
+                    <input
+                      type="url"
+                      value={socialLinks[platform]}
+                      onChange={(event) =>
+                        handleSocialLinkChange(platform, event.target.value)
+                      }
+                      className={input}
+                      placeholder={placeholder}
+                    />
+                  </label>
+                ))}
               </div>
             </section>
 

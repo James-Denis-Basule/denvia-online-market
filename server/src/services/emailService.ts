@@ -91,6 +91,73 @@ export async function sendEmailVerificationEmail(
   return sendEmail(to, subject, text, html);
 }
 
+export async function sendPasswordResetEmail(
+  to: string,
+  firstName: string,
+  token: string,
+) {
+  const resetUrl =
+    `${env.clientUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+  const subject = "Reset your Denvia Online Market password";
+
+  const text = [
+    `Hello ${firstName},`,
+    "",
+    "We received a request to reset your Denvia Online Market password.",
+    "",
+    "Open the reset link in this email to choose a new password.",
+    "",
+    "This link expires in 1 hour.",
+    "",
+    "If you did not request a password reset, you can safely ignore this email — your password will not be changed.",
+    "",
+    "Denvia Online Market",
+  ].join("\n");
+
+  const html = `
+    <p>Hello ${firstName},</p>
+
+    <p>
+      We received a request to reset your Denvia Online Market password.
+    </p>
+
+    <p>
+      Click the button below to choose a new password:
+    </p>
+
+    <p>
+      <a
+        href="${resetUrl}"
+        style="
+          display: inline-block;
+          padding: 12px 20px;
+          background: #000;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: 600;
+        "
+      >
+        Reset Password
+      </a>
+    </p>
+
+    <p>
+      This link expires in 1 hour.
+    </p>
+
+    <p>
+      If you did not request a password reset, you can safely ignore this
+      email — your password will not be changed.
+    </p>
+
+    <p>Denvia Online Market</p>
+  `;
+
+  return sendEmail(to, subject, text, html);
+}
+
 export async function verifyEmailTransport() {
   await transporter.verify();
 }

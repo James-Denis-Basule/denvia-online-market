@@ -27,6 +27,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import otpRoutes from "./routes/otpRoutes.js";
 import {
   paymentWebhookController,
   deliveryWebhookController,
@@ -74,6 +75,7 @@ app.use("/api/marketplace/analytics", analyticsRoutes);
 app.use("/api/marketplace/chat", chatRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/otp", otpRoutes);
 app.use("/api/webhooks/payment", paymentWebhookController);
 app.use("/api/webhooks/delivery", deliveryWebhookController);
 app.use("/api/admin", adminRoutes);

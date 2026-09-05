@@ -611,68 +611,71 @@ function BusinessesPage() {
                   const slogan = getSlogan(business);
 
                   return (
-                    <Card
+                    <Link
                       key={business._id}
-                      className="group flex h-full flex-col overflow-hidden p-0 transition duration-200 hover:-translate-y-1 hover:shadow-xl"
+                      to={`/businesses/${business._id}`}
+                      className="block h-full"
                     >
-                      {business.coverImage ? (
-                        <div className="relative h-32 overflow-hidden bg-gray-100">
-                          <img
-                            src={business.coverImage}
-                            alt={business.name}
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-24 bg-gradient-to-br from-blue-50 via-indigo-50 to-gray-100" />
-                      )}
-
-                      <div className="flex flex-1 flex-col p-5">
-                        <div className="flex items-start gap-3">
-                          {business.logo ? (
+                      <Card className="group flex h-full flex-col overflow-hidden p-0 transition duration-200 hover:-translate-y-1 hover:shadow-xl">
+                        {business.coverImage ? (
+                          <div className="relative h-32 overflow-hidden bg-gray-100">
                             <img
-                              src={business.logo}
-                              alt={`${business.name} logo`}
-                              className="h-12 w-12 shrink-0 rounded-xl border border-gray-100 bg-white object-cover shadow-sm"
+                              src={business.coverImage}
+                              alt={business.name}
+                              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
                             />
-                          ) : (
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-base font-bold text-blue-600">
-                              {business.name.charAt(0).toUpperCase()}
+                          </div>
+                        ) : (
+                          <div className="h-24 bg-gradient-to-br from-blue-50 via-indigo-50 to-gray-100" />
+                        )}
+
+                        <div className="flex flex-1 flex-col p-5">
+                          <div className="flex items-start gap-3">
+                            {business.logo ? (
+                              <img
+                                src={business.logo}
+                                alt={`${business.name} logo`}
+                                className="h-12 w-12 shrink-0 rounded-xl border border-gray-100 bg-white object-cover shadow-sm"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-base font-bold text-blue-600">
+                                {business.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+
+                            <div className="min-w-0 flex-1">
+                              <h3 className="truncate font-bold text-gray-900">
+                                {business.name}
+                              </h3>
+
+                              {business.category && (
+                                <p className="mt-0.5 truncate text-xs font-bold uppercase tracking-wide text-blue-600">
+                                  {business.category}
+                                </p>
+                              )}
                             </div>
+                          </div>
+
+                          {slogan && (
+                            <p className="mt-3 line-clamp-2 text-sm font-medium italic leading-5 text-gray-700">
+                              “{slogan}”
+                            </p>
                           )}
 
-                          <div className="min-w-0 flex-1">
-                            <h3 className="truncate font-bold text-gray-900">
-                              {business.name}
-                            </h3>
+                          {!slogan && business.description && (
+                            <p className="mt-3 line-clamp-2 text-sm leading-5 text-gray-600">
+                              {business.description}
+                            </p>
+                          )}
 
-                            {business.category && (
-                              <p className="mt-0.5 truncate text-xs font-bold uppercase tracking-wide text-blue-600">
-                                {business.category}
-                              </p>
-                            )}
-                          </div>
+                          {location && (
+                            <p className="mt-auto pt-4 text-xs text-gray-500">
+                              {location}
+                            </p>
+                          )}
                         </div>
-
-                        {slogan && (
-                          <p className="mt-3 line-clamp-2 text-sm font-medium italic leading-5 text-gray-700">
-                            “{slogan}”
-                          </p>
-                        )}
-
-                        {!slogan && business.description && (
-                          <p className="mt-3 line-clamp-2 text-sm leading-5 text-gray-600">
-                            {business.description}
-                          </p>
-                        )}
-
-                        {location && (
-                          <p className="mt-auto pt-4 text-xs text-gray-500">
-                            {location}
-                          </p>
-                        )}
-                      </div>
-                    </Card>
+                      </Card>
+                    </Link>
                   );
                 })}
               </div>

@@ -25,13 +25,42 @@ const operatingHoursSchema = z
   })
   .optional();
 
+const PLATFORM_BASE_URLS: Record<string, string> = {
+  facebook: "https://facebook.com/",
+  instagram: "https://instagram.com/",
+  linkedin: "https://linkedin.com/in/",
+  tiktok: "https://tiktok.com/@",
+  x: "https://x.com/",
+};
+
+function normalizeSocialLink(platform: string) {
+  return z.preprocess((value) => {
+    if (typeof value !== "string" || value.trim() === "") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+
+    if (/\.[a-z]{2,}\//i.test(trimmed) || trimmed.includes(".com")) {
+      return `https://${trimmed}`;
+    }
+
+    const handle = trimmed.replace(/^@/, "");
+    return `${PLATFORM_BASE_URLS[platform]}${handle}`;
+  }, z.string().url(`Invalid ${platform} link`).optional());
+}
+
 const socialLinksSchema = z
   .object({
-    facebook: z.string().trim().url().optional(),
-    instagram: z.string().trim().url().optional(),
-    linkedin: z.string().trim().url().optional(),
-    tiktok: z.string().trim().url().optional(),
-    x: z.string().trim().url().optional(),
+    facebook: normalizeSocialLink("facebook"),
+    instagram: normalizeSocialLink("instagram"),
+    linkedin: normalizeSocialLink("linkedin"),
+    tiktok: normalizeSocialLink("tiktok"),
+    x: normalizeSocialLink("x"),
   })
   .optional();
 

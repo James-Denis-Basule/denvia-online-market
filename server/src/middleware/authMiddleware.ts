@@ -55,3 +55,46 @@ export function authenticate(
     );
   }
 }
+
+/**
+ * Like `authenticate`, but never rejects the request. If a valid
+ * Bearer token is present, `req.user` is populated exactly as
+ * `authenticate` would. If no token, an invalid token, or an expired
+ * token is present, the request simply proceeds as a guest
+ * (`req.user` stays undefined). Used on routes that must support both
+ * authenticated and guest access — e.g. order creation.
+ */
+export function optionalAuthenticate(
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction,
+) {
+  try {
+    const authorization = req.headers.authorization;
+
+    if (!authorization) {
+      next();
+      return;
+    }
+
+    const [scheme, token] = authorization.split(' ');
+
+    if (scheme !== 'Bearer' || !token) {
+      next();
+      return;
+    }
+
+    const payload = verifyAccessToken(token);
+
+    req.user = {
+      userId: payload.userId,
+      role: payload.role,
+    };
+
+    next();
+  } catch {
+    // Invalid/expired token on a guest-accessible route: proceed as
+    // a guest rather than blocking the request.
+    next();
+  }
+}

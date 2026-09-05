@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import ProductReview from "../models/ProductReview.js";
 import { AppError } from "../utils/AppError.js";
+import { notifyNewFeedbackForBusiness } from "./notificationService.js";
 import type { ReviewInput, UpdateReviewInput } from "../types/review.js";
 
 async function refreshProductRating(productId: string) {
@@ -54,8 +55,15 @@ export async function getProductReviews(productId: string) {
   };
 }
 
-export async function createProductReview(userId: string, productId: string, input: ReviewInput) {
-  if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(productId)) {
+export async function createProductReview(
+  userId: string,
+  productId: string,
+  input: ReviewInput,
+) {
+  if (
+    !mongoose.isValidObjectId(userId) ||
+    !mongoose.isValidObjectId(productId)
+  ) {
     throw new AppError("Invalid user or product ID", 400);
   }
 
@@ -81,6 +89,21 @@ export async function createProductReview(userId: string, productId: string, inp
 
   const ratingSummary = await refreshProductRating(productId);
 
+  try {
+    // await notifyNewFeedbackForBusiness(review.toObject());
+    await notifyNewFeedbackForBusiness({
+      _id: review._id,
+      businessId: review.businessId,
+      rating: review.rating,
+      comment: review.comment,
+    });
+  } catch (notificationError) {
+    console.error(
+      "Failed to notify business of new feedback:",
+      notificationError,
+    );
+  }
+
   return {
     ...review.toObject(),
     ...ratingSummary,
@@ -93,13 +116,23 @@ export async function updateProductReview(
   reviewId: string,
   input: UpdateReviewInput,
 ) {
-  if (!mongoose.isValidObjectId(reviewId) || !mongoose.isValidObjectId(productId)) {
+  if (
+    !mongoose.isValidObjectId(reviewId) ||
+    !mongoose.isValidObjectId(productId)
+  ) {
     throw new AppError("Invalid review or product ID", 400);
   }
 
-  const review = await ProductReview.findOne({ _id: reviewId, productId, userId });
+  const review = await ProductReview.findOne({
+    _id: reviewId,
+    productId,
+    userId,
+  });
   if (!review) {
-    throw new AppError("Review not found or you do not have permission to update it", 404);
+    throw new AppError(
+      "Review not found or you do not have permission to update it",
+      404,
+    );
   }
 
   if (input.rating !== undefined) {
@@ -124,14 +157,28 @@ export async function updateProductReview(
   };
 }
 
-export async function deleteProductReview(userId: string, productId: string, reviewId: string) {
-  if (!mongoose.isValidObjectId(reviewId) || !mongoose.isValidObjectId(productId)) {
+export async function deleteProductReview(
+  userId: string,
+  productId: string,
+  reviewId: string,
+) {
+  if (
+    !mongoose.isValidObjectId(reviewId) ||
+    !mongoose.isValidObjectId(productId)
+  ) {
     throw new AppError("Invalid review or product ID", 400);
   }
 
-  const review = await ProductReview.findOne({ _id: reviewId, productId, userId });
+  const review = await ProductReview.findOne({
+    _id: reviewId,
+    productId,
+    userId,
+  });
   if (!review) {
-    throw new AppError("Review not found or you do not have permission to delete it", 404);
+    throw new AppError(
+      "Review not found or you do not have permission to delete it",
+      404,
+    );
   }
 
   await review.deleteOne();

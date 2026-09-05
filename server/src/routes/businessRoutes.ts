@@ -17,6 +17,7 @@ import {
   listStaffController,
   removeStaffController,
   acceptStaffInviteController,
+  updateStaffNotificationPermissionController,
 } from "../controllers/businessStaffController.js";
 
 import { authenticate } from "../middleware/authMiddleware.js";
@@ -57,6 +58,16 @@ router.post(
   "/:businessId/staff/accept",
   authenticate,
   acceptStaffInviteController,
+);
+
+/**
+ * Update whether a staff member receives order/feedback notifications.
+ * Owner/manager/admin only.
+ */
+router.patch(
+  "/:businessId/staff/:membershipId/notifications",
+  requireBusinessManageAccess("businessId"),
+  updateStaffNotificationPermissionController,
 );
 
 /**

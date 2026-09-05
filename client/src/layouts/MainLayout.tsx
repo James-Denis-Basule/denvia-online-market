@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
+import NotificationBell from "../components/layout/NotificationBell";
 
 const LOGO_URL =
   "https://res.cloudinary.com/dy3a8sgs7/image/upload/v1787605738/ChatGPT_Image_Aug_22_2026_at_01_25_02_AM_kbz3h0.png";
@@ -149,7 +150,10 @@ function MainLayout() {
             ))}
 
             {isAuthenticated ? (
-              <div ref={accountMenuRef} className="relative ml-3 border-l border-gray-200 pl-3">
+              <div className="ml-3 flex items-center gap-2 border-l border-gray-200 pl-3">
+                <NotificationBell />
+
+                <div ref={accountMenuRef} className="relative">
                 <button
                   type="button"
                   onClick={() => setAccountMenuOpen((open) => !open)}
@@ -236,6 +240,7 @@ function MainLayout() {
                     </button>
                   </div>
                 )}
+                </div>
               </div>
             ) : (
               <div className="ml-3 flex items-center gap-2 border-l border-gray-200 pl-3">

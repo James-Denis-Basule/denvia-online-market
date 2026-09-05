@@ -9,7 +9,7 @@ export type DeliveryStatus =
 
 export interface IDelivery extends Document {
   orderId: Types.ObjectId;
-  userId: Types.ObjectId;
+  userId?: Types.ObjectId;
   businessId?: Types.ObjectId;
   method: string;
   provider: string;
@@ -42,7 +42,7 @@ const deliverySchema = new Schema<IDelivery>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
 

@@ -4,6 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 
 import HomePage from "../pages/HomePage";
 import BusinessesPage from "../pages/BusinessesPage";
+import BusinessDetailPage from "../pages/BusinessDetailPage";
 import BusinessManagementPage from "../pages/BusinessManagementPage";
 import BusinessCreatePage from "../pages/BusinessCreatePage";
 import BusinessEditPage from "../pages/BusinessEditPage";
@@ -15,6 +16,8 @@ import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import AccountTypesPage from "../pages/AccountTypesPage";
 import VerifyEmailPage from "../pages/VerifyEmailPage";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/ResetPasswordPage";
 import DashboardPage from "../pages/DashboardPage";
 import ServiceManagementPage from "../pages/ServiceManagementPage";
 import ServiceCreatePage from "../pages/ServiceCreatePage";
@@ -44,6 +47,8 @@ const pageTitles: Record<string, string> = {
   "/account-types": "DOM | Account Types",
   "/register": "DOM | Register",
   "/verify-email": "DOM | Verify Email",
+  "/forgot-password": "DOM | Forgot Password",
+  "/reset-password": "DOM | Reset Password",
   "/dashboard": "DOM | Dashboard",
   "/chat": "DOM | AI Assistant",
   "/cart": "DOM | Cart",
@@ -60,6 +65,14 @@ function PageTitle() {
     title = "DOM | Order Details";
   }
 
+  if (location.pathname.startsWith("/businesses/")) {
+    const segment = location.pathname.split("/")[2];
+
+    if (segment && !["manage", "create", "edit"].includes(segment)) {
+      title = "DOM | Business Details";
+    }
+  }
+
   return <title>{title ?? "DOM | Denvia Online Market"}</title>;
 }
 
@@ -73,6 +86,10 @@ function AppRoutes() {
           {/* Public pages */}
           <Route path="/" element={<HomePage />} />
           <Route path="/businesses" element={<BusinessesPage />} />
+          <Route
+            path="/businesses/:id"
+            element={<BusinessDetailPage />}
+          />
           <Route path="/products" element={<ProductsPage />} />
 <Route path="/marketplace" element={<MarketplacePage />} />
 
@@ -82,6 +99,14 @@ function AppRoutes() {
             <Route path="/account-types" element={<AccountTypesPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route
+              path="/forgot-password"
+              element={<ForgotPasswordPage />}
+            />
+            <Route
+              path="/reset-password"
+              element={<ResetPasswordPage />}
+            />
           </Route>
 
           {/* Guest cart and checkout */}

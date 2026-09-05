@@ -82,6 +82,19 @@ export async function createBusiness(
     );
   }
 
+  if (input.email) {
+    const existingEmail = await Business.findOne({
+      email: input.email,
+    });
+
+    if (existingEmail) {
+      throw new AppError(
+        "A business with this email already exists",
+        409,
+      );
+    }
+  }
+
   const business = await Business.create({
     ownerId,
     organizationId: input.organizationId,
@@ -126,7 +139,14 @@ export async function createBusiness(
     user.accountTypes.push("business");
   }
 
-  user.role = "business_owner";
+  // Feature 6: activate business capability on the SAME account.
+  // Never touch an admin's role, and don't downgrade a role that
+  // already grants business-context access (business_staff keeps
+  // their staff role — owning a business doesn't change how their
+  // platform-wide permissions work).
+  if (user.role === "user") {
+    user.role = "business_owner";
+  }
 
   if (!user.activeBusinessId) {
     user.activeBusinessId = business._id;
@@ -259,6 +279,20 @@ export async function updateBusiness(
   }
 
   if (input.email !== undefined) {
+    if (input.email && input.email !== business.email) {
+      const existingEmail = await Business.findOne({
+        email: input.email,
+        _id: { $ne: businessId },
+      });
+
+      if (existingEmail) {
+        throw new AppError(
+          "A business with this email already exists",
+          409,
+        );
+      }
+    }
+
     business.email = input.email;
   }
 
@@ -468,7 +502,7 @@ export async function getPublicBusinessById(
     _id: businessId,
     status: "active",
   }).select(
-    "_id name slogan slug description email phone category location logo coverImage website status isFeatured createdAt updatedAt",
+    "_id name slogan slug description email phone whatsappNumber category location operatingHours socialLinks logo coverImage website status isFeatured createdAt updatedAt",
   );
 
   if (!business) {

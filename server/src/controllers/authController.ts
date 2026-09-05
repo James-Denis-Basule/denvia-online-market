@@ -1,6 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
 import User from "../models/User.js";
-import { loginSchema, registerSchema } from "../types/auth.js";
+import {
+  loginSchema,
+  registerSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from "../types/auth.js";
 import Business from "../models/Business.js";
 import {
   loginUser,
@@ -8,6 +13,8 @@ import {
   refreshUserAccessToken,
   registerUser,
   verifyEmail,
+  requestPasswordReset,
+  resetPassword,
 } from "../services/authService.js";
 import { AppError } from "../utils/AppError.js";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
@@ -71,6 +78,68 @@ export async function verifyEmailAddress(
   }
 }
 
+export async function forgotPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const validation = forgotPasswordSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid request",
+        errors: validation.error.flatten().fieldErrors,
+      });
+
+      return;
+    }
+
+    await requestPasswordReset(validation.data.email);
+
+    // Same response whether or not the email exists — this endpoint
+    // never confirms or denies an account's existence.
+    res.status(200).json({
+      success: true,
+      message:
+        "If an account exists for that email address, a password reset link has been sent.",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetPasswordController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const validation = resetPasswordSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid request",
+        errors: validation.error.flatten().fieldErrors,
+      });
+
+      return;
+    }
+
+    await resetPassword(validation.data.token, validation.data.password);
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Your password has been reset successfully. You can now sign in with your new password.",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const validation = loginSchema.safeParse(req.body);
@@ -105,6 +174,45 @@ export async function login(req: Request, res: Response, next: NextFunction) {
         accessToken: result.accessToken,
         user: result.user,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateNotificationPreferences(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const { sms, whatsapp, email, inApp } = req.body ?? {};
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      throw new AppError("User account not found", 404);
+    }
+
+    // In-app notifications carry critical transactional info
+    // (order status, etc.) and cannot be disabled — matches spec:
+    // critical transactional notifications aren't user-optional.
+    if (typeof sms === "boolean") user.notificationPreferences.sms = sms;
+    if (typeof whatsapp === "boolean")
+      user.notificationPreferences.whatsapp = whatsapp;
+    if (typeof email === "boolean") user.notificationPreferences.email = email;
+    void inApp;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Notification preferences updated",
+      data: { notificationPreferences: user.notificationPreferences },
     });
   } catch (error) {
     next(error);

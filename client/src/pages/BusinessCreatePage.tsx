@@ -68,6 +68,8 @@ function BusinessCreatePage() {
     category: "",
     phone: "",
     email: "",
+    whatsappNumber: "",
+    website: "",
     address: "",
     city: "",
     district: "",
@@ -88,16 +90,16 @@ function BusinessCreatePage() {
   ) {
     const { name, value } = event.target;
 
-    if (name === "phone") {
-      let phone = value.replace(/[^\d]/g, "");
+    if (name === "phone" || name === "whatsappNumber") {
+      let digits = value.replace(/[^\d]/g, "");
 
-      if (phone.startsWith("0")) {
-        phone = phone.slice(1);
+      if (digits.startsWith("0")) {
+        digits = digits.slice(1);
       }
 
       setForm((current) => ({
         ...current,
-        phone,
+        [name]: digits,
       }));
 
       return;
@@ -195,10 +197,15 @@ function BusinessCreatePage() {
         phone: form.phone
           ? `${countryCode} ${form.phone}`
           : undefined,
-        email: form.email.trim(),
+        email: form.email.trim() || undefined,
+        whatsappNumber: form.whatsappNumber
+          ? `${countryCode} ${form.whatsappNumber}`
+          : undefined,
+        website: form.website.trim() || undefined,
         location: {
           country: form.country,
           city: form.city.trim() || undefined,
+          district: form.district.trim() || undefined,
           address: form.address.trim() || undefined,
         },
         logo: form.logo.startsWith("http")
@@ -436,6 +443,46 @@ function BusinessCreatePage() {
 
             <div>
               <label className="text-sm font-semibold text-gray-700">
+                WhatsApp number
+              </label>
+
+              <div className="mt-2 flex">
+                <span className="flex items-center rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 px-4 text-sm font-semibold text-gray-700">
+                  {countryCode}
+                </span>
+
+                <input
+                  name="whatsappNumber"
+                  value={form.whatsappNumber}
+                  onChange={handleChange}
+                  inputMode="numeric"
+                  placeholder="Leave blank to use phone number"
+                  className="w-full rounded-r-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+                />
+              </div>
+
+              <p className="mt-1.5 text-xs text-gray-500">
+                Customers can message you here directly from your storefront.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700">
+                Website
+              </label>
+
+              <input
+                name="website"
+                type="url"
+                value={form.website}
+                onChange={handleChange}
+                placeholder="https://yourbusiness.com"
+                className={input}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-gray-700">
                 District
               </label>
 
@@ -591,6 +638,11 @@ function BusinessCreatePage() {
                 : "Create business"}
             </button>
           </div>
+
+          <p className="mt-4 text-center text-xs text-gray-400">
+            You can add business hours and social media links after
+            creating your business from the edit page.
+          </p>
         </form>
         )}
       </Container>

@@ -3,7 +3,16 @@ import api from './api';
 export type NotificationRecord = {
   _id: string;
   userId?: string;
-  type: 'order_status' | 'delivery_status' | 'payment_status' | 'system';
+  businessId?: string;
+  orderId?: string;
+  feedbackId?: string;
+  type:
+    | 'order_status'
+    | 'delivery_status'
+    | 'payment_status'
+    | 'new_order'
+    | 'new_feedback'
+    | 'system';
   title: string;
   message: string;
   isRead: boolean;

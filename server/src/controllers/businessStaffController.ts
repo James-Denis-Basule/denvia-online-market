@@ -8,6 +8,7 @@ import {
   listBusinessStaff,
   removeStaffMember,
   acceptStaffInvite,
+  updateStaffNotificationPermission,
 } from "../services/businessStaffService.js";
 
 import type { BusinessScopedRequest } from "../middleware/businessAccessMiddleware.js";
@@ -71,6 +72,38 @@ export async function listStaffController(
       data: {
         staff,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateStaffNotificationPermissionController(
+  req: BusinessScopedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { canReceiveOrderNotifications } = req.body ?? {};
+
+    if (typeof canReceiveOrderNotifications !== "boolean") {
+      res.status(400).json({
+        success: false,
+        message: "canReceiveOrderNotifications must be a boolean",
+      });
+      return;
+    }
+
+    const membership = await updateStaffNotificationPermission(
+      String(req.params.businessId),
+      String(req.params.membershipId),
+      canReceiveOrderNotifications,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Notification permission updated",
+      data: { membership },
     });
   } catch (error) {
     next(error);

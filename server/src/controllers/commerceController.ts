@@ -16,6 +16,7 @@ import {
   cancelOrderForUserOrAuthorizedSeller,
   assignDeliveryToOrder,
   requireAuthorizedSellerForOrder,
+  getOrderForGuestTracking,
 } from "../services/commerceService.js";
 import { getDeliveryForOrder, updateDeliveryStatusForOrder } from "../services/deliveryService.js";
 
@@ -206,23 +207,43 @@ export async function removeCartItemController(
   }
 }
 
+export async function trackGuestOrderController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { reference, token } = req.query;
+
+    const order = await getOrderForGuestTracking(
+      String(reference ?? ""),
+      String(token ?? ""),
+    );
+
+    res.status(200).json({
+      success: true,
+      data: { order },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function createOrderController(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    if (!req.user) {
-      res.status(401).json({ success: false, message: "Authentication required" });
-      return;
-    }
+    const { items, paymentMethod, shippingMethod, deliveryAddress, guestInfo } =
+      req.body ?? {};
 
-    const { items, paymentMethod, shippingMethod, deliveryAddress } = req.body ?? {};
-    const order = await createOrderForUser(req.user.userId, {
+    const order = await createOrderForUser(req.user?.userId, {
       items,
       paymentMethod,
       shippingMethod,
       deliveryAddress,
+      guestInfo,
     });
 
     res.status(201).json({
@@ -258,16 +279,11 @@ export async function getOrdersController(
 }
 
 export async function getCheckoutQuoteController(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    if (!req.user) {
-      res.status(401).json({ success: false, message: "Authentication required" });
-      return;
-    }
-
     const { items, paymentMethod, shippingMethod, deliveryAddress } = req.body ?? {};
     const quote = await getCheckoutQuote(items ?? [], paymentMethod, shippingMethod, deliveryAddress);
 

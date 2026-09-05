@@ -1,6 +1,9 @@
 import User from "../models/User.js";
 
-import { sendEmailVerificationEmail } from "./emailService.js";
+import {
+  sendEmailVerificationEmail,
+  sendPasswordResetEmail,
+} from "./emailService.js";
 
 import { hashPassword, comparePassword } from "../utils/password.js";
 
@@ -19,6 +22,12 @@ import {
   hashEmailVerificationToken,
   getEmailVerificationExpiration,
 } from "../utils/emailVerification.js";
+
+import {
+  generatePasswordResetToken,
+  hashPasswordResetToken,
+  getPasswordResetExpiration,
+} from "../utils/passwordReset.js";
 
 export async function registerUser(input: RegisterInput) {
   const existingUser = await User.findOne({
@@ -111,6 +120,58 @@ export async function verifyEmail(token: string) {
   return {
     alreadyVerified: false,
   };
+}
+
+export async function requestPasswordReset(email: string) {
+  const user = await User.findOne({
+    email: email.toLowerCase().trim(),
+  });
+
+  // Deliberately do not reveal whether the email exists. The caller
+  // always gets the same generic response either way, to prevent
+  // account enumeration via this endpoint.
+  if (!user || !user.isActive) {
+    return;
+  }
+
+  const resetToken = generatePasswordResetToken();
+  const resetTokenHash = hashPasswordResetToken(resetToken);
+  const resetExpiresAt = getPasswordResetExpiration();
+
+  user.passwordResetTokenHash = resetTokenHash;
+  user.passwordResetExpiresAt = resetExpiresAt;
+
+  await user.save();
+
+  await sendPasswordResetEmail(user.email, user.firstName, resetToken);
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const tokenHash = hashPasswordResetToken(token);
+
+  const user = await User.findOne({
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpiresAt: {
+      $gt: new Date(),
+    },
+  }).select(
+    "+password +passwordResetTokenHash +passwordResetExpiresAt +refreshToken",
+  );
+
+  if (!user) {
+    throw new AppError("Invalid or expired password reset token", 400);
+  }
+
+  user.password = await hashPassword(newPassword);
+  user.passwordResetTokenHash = undefined;
+  user.passwordResetExpiresAt = undefined;
+
+  // Log the account out of every existing session — a password reset
+  // should invalidate any refresh token issued before the reset,
+  // in case the account was reset because it was compromised.
+  user.refreshToken = undefined;
+
+  await user.save();
 }
 
 export async function loginUser(email: string, password: string) {

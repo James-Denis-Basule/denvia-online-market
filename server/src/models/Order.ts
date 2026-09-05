@@ -21,15 +21,21 @@ export interface IOrderItem {
   image?: string;
 }
 
+export type ContactChannel = "sms" | "whatsapp" | "email";
+
 export interface IOrderCustomer {
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone?: string;
+  phoneVerified?: boolean;
+  preferredChannel?: ContactChannel;
 }
 
 export interface IOrder extends Document {
   userId?: Types.ObjectId;
+  orderReference: string;
+  guestTrackingToken?: string;
   customer: IOrderCustomer;
   items: IOrderItem[];
   status: OrderStatus;
@@ -97,6 +103,17 @@ const orderSchema = new Schema<IOrder>(
       required: false,
       index: true,
     },
+    orderReference: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    guestTrackingToken: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
     customer: {
       firstName: {
         type: String,
@@ -112,13 +129,21 @@ const orderSchema = new Schema<IOrder>(
       },
       email: {
         type: String,
-        required: true,
+        required: false,
         lowercase: true,
         trim: true,
       },
       phone: {
         type: String,
         trim: true,
+      },
+      phoneVerified: {
+        type: Boolean,
+        default: false,
+      },
+      preferredChannel: {
+        type: String,
+        enum: ["sms", "whatsapp", "email"],
       },
     },
     items: {

@@ -4,7 +4,7 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export interface IPayment extends Document {
   orderId: Types.ObjectId;
-  userId: Types.ObjectId;
+  userId?: Types.ObjectId;
   amount: number;
   currency: string;
   provider: string;
@@ -29,7 +29,7 @@ const paymentSchema = new Schema<IPayment>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
     },
 
